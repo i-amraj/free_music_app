@@ -5,13 +5,18 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
@@ -72,6 +77,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -96,6 +102,7 @@ import androidx.navigation.compose.rememberNavController
 import coil.imageLoader
 import coil.request.ImageRequest
 import com.valentinilk.shimmer.LocalShimmerTheme
+import com.zionhuang.music.R
 import com.zionhuang.innertube.YouTube
 import com.zionhuang.innertube.models.SongItem
 import com.zionhuang.music.constants.AppBarHeight
@@ -118,9 +125,11 @@ import com.zionhuang.music.playback.DownloadUtil
 import com.zionhuang.music.playback.MusicService
 import com.zionhuang.music.playback.MusicService.MusicBinder
 import com.zionhuang.music.playback.PlayerConnection
+import com.zionhuang.music.ui.component.AnimatedGradientBackground
 import com.zionhuang.music.ui.component.BottomSheetMenu
 import com.zionhuang.music.ui.component.IconButton
 import com.zionhuang.music.ui.component.LocalMenuState
+import com.zionhuang.music.ui.component.RajMusicWatermark
 import com.zionhuang.music.ui.component.SearchBar
 import com.zionhuang.music.ui.component.rememberBottomSheetState
 import com.zionhuang.music.ui.component.shimmer.ShimmerTheme
@@ -134,7 +143,7 @@ import com.zionhuang.music.ui.screens.settings.DarkMode
 import com.zionhuang.music.ui.screens.settings.NavigationTab
 import com.zionhuang.music.ui.theme.ColorSaver
 import com.zionhuang.music.ui.theme.DefaultThemeColor
-import com.zionhuang.music.ui.theme.InnerTuneTheme
+import com.zionhuang.music.ui.theme.RajMusicTheme
 import com.zionhuang.music.ui.theme.extractThemeColor
 import com.zionhuang.music.ui.utils.appBarScrollBehavior
 import com.zionhuang.music.ui.utils.backToMain
@@ -156,6 +165,9 @@ import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.days
+import android.speech.RecognizerIntent
+import androidx.core.content.ContextCompat
+import java.util.Locale
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -224,6 +236,16 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            // Splash screen state
+            var showSplash by rememberSaveable { mutableStateOf(true) }
+            
+            if (showSplash) {
+                com.zionhuang.music.ui.screens.SplashScreen(
+                    onSplashComplete = { showSplash = false }
+                )
+                return@setContent
+            }
+            
             LaunchedEffect(Unit) {
                 if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
                     Updater.getLatestVersionName().onSuccess {
@@ -232,12 +254,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = true)
-            val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+            val enableDynamicTheme by rememberPreference(DynamicThemeKey, defaultValue = false)
+            val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.TIME)
             val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
             val isSystemInDarkTheme = isSystemInDarkTheme()
             val useDarkTheme = remember(darkTheme, isSystemInDarkTheme) {
-                if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+                when (darkTheme) {
+                    DarkMode.ON -> true
+                    DarkMode.OFF -> false
+                    DarkMode.AUTO -> isSystemInDarkTheme
+                    DarkMode.TIME -> isNightByTime()
+                }
             }
             LaunchedEffect(useDarkTheme) {
                 setSystemBarAppearance(useDarkTheme)
@@ -267,7 +294,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            InnerTuneTheme(
+            RajMusicTheme(
                 darkTheme = useDarkTheme,
                 pureBlack = pureBlack,
                 themeColor = themeColor
@@ -275,8 +302,15 @@ class MainActivity : ComponentActivity() {
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface)
                 ) {
+                    val layoutMaxHeight = maxHeight
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
                     val focusManager = LocalFocusManager.current
                     val density = LocalDensity.current
                     val windowsInsets = WindowInsets.systemBars
@@ -338,6 +372,50 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    val context = LocalContext.current
+                    val speechLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.StartActivityForResult()
+                    ) { result ->
+                        if (result.resultCode == RESULT_OK) {
+                            val text = result.data
+                                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                                ?.firstOrNull()
+                                ?.trim()
+                            if (!text.isNullOrEmpty()) {
+                                onQueryChange(TextFieldValue(text))
+                                onSearch(text)
+                                onActiveChange(false)
+                            }
+                        }
+                    }
+
+                    val micPermissionLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission()
+                    ) { granted ->
+                        if (granted) {
+                            launchVoiceSearch(context, speechLauncher)
+                        } else {
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.voice_search_permission_denied),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+
+                    val onMicClick: () -> Unit = {
+                        onActiveChange(true)
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            android.Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED
+                        if (hasPermission) {
+                            launchVoiceSearch(context, speechLauncher)
+                        } else {
+                            micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+
                     var openSearchImmediately: Boolean by remember {
                         mutableStateOf(intent?.action == ACTION_SEARCH)
                     }
@@ -361,7 +439,7 @@ class MainActivity : ComponentActivity() {
                     val playerBottomSheetState = rememberBottomSheetState(
                         dismissedBound = 0.dp,
                         collapsedBound = bottomInset + (if (shouldShowNavigationBar) NavigationBarHeight else 0.dp) + MiniPlayerHeight,
-                        expandedBound = maxHeight,
+                        expandedBound = layoutMaxHeight,
                     )
 
                     val playerAwareWindowInsets = remember(bottomInset, shouldShowNavigationBar, playerBottomSheetState.isDismissed) {
@@ -612,6 +690,14 @@ class MainActivity : ComponentActivity() {
                                             }
                                         }
                                         IconButton(
+                                            onClick = onMicClick
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.mic),
+                                                contentDescription = stringResource(R.string.voice_search)
+                                            )
+                                        }
+                                        IconButton(
                                             onClick = {
                                                 searchSource = searchSource.toggle()
                                             }
@@ -688,6 +774,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+
+                        RajMusicWatermark(modifier = Modifier.fillMaxSize())
 
                         BottomSheetPlayer(
                             state = playerBottomSheetState,
@@ -778,12 +866,21 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    RajMusicWatermark(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                bottom = bottomInset + (if (shouldShowNavigationBar) NavigationBarHeight else 0.dp) + 8.dp
+                            )
+                    )
+
                     LaunchedEffect(shouldShowSearchBar, openSearchImmediately) {
                         if (shouldShowSearchBar && openSearchImmediately) {
                             onActiveChange(true)
                             searchBarFocusRequester.requestFocus()
                             openSearchImmediately = false
                         }
+                    }
                     }
                 }
             }
@@ -816,3 +913,25 @@ val LocalDatabase = staticCompositionLocalOf<MusicDatabase> { error("No database
 val LocalPlayerConnection = staticCompositionLocalOf<PlayerConnection?> { error("No PlayerConnection provided") }
 val LocalPlayerAwareWindowInsets = compositionLocalOf<WindowInsets> { error("No WindowInsets provided") }
 val LocalDownloadUtil = staticCompositionLocalOf<DownloadUtil> { error("No DownloadUtil provided") }
+
+private fun launchVoiceSearch(context: Context, launcher: ActivityResultLauncher<Intent>) {
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
+    }
+    try {
+        launcher.launch(intent)
+    } catch (e: Exception) {
+        Toast.makeText(
+            context,
+            context.getString(R.string.voice_search_not_supported),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+}
+
+private fun isNightByTime(): Boolean {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    return hour < 4 || hour >= 17
+}

@@ -85,7 +85,7 @@
     <string name="undo">Vrati</string>
     <string name="artists">Umjetnici</string>
     <string name="playlists">Spisci za reprodukciju</string>
-    <string name="search_yt_music">Pretraži YouTube Music…</string>
+    <string name="search_yt_music">Pretraži Raj Music…</string>
     <string name="from_your_library">Iz vaše biblioteke</string>
     <string name="stats">Statistike</string>
     <string name="mood_and_genres">Raspoloženje i Žanrovi</string>
@@ -93,7 +93,7 @@
     <string name="account">Račun</string>
     <string name="quick_picks_empty">Odslušaj pjesme kako bi generisali vaše brze odabire</string>
     <string name="keep_listening">Nastavite da slušate</string>
-    <string name="your_youtube_playlists">Vaši YouTube spisci za reprodukciju</string>
+    <string name="your_youtube_playlists">Vaši Raj Music spisci za reprodukciju</string>
     <string name="most_played_albums">Najslušaniji albumi</string>
     <string name="filter_albums">Albumi</string>
     <string name="new_release_albums">Novi albumi</string>

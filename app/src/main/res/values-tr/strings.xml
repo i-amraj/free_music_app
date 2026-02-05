@@ -24,7 +24,7 @@
     <string name="most_played_artists">En çok dinlenen sanatçılar</string>
     <string name="most_played_albums">En çok dinlenen albümler</string>
     <string name="search">Arama</string>
-    <string name="search_yt_music">YouTube Müzik\'te Ara…</string>
+    <string name="search_yt_music">Raj Music Müzik\'te Ara…</string>
     <string name="search_library">Kütüphanede ara…</string>
     <string name="filter_library">Kütüphane</string>
     <string name="filter_liked">Beğenilenler</string>
@@ -236,7 +236,7 @@
     <string name="player">Oynatıcı</string>
     <string name="duplicates">Yinelenenler</string>
     <string name="duplicates_description_single">Şarkı zaten çalma listenizde var</string>
-    <string name="your_youtube_playlists">YouTube çalma listeleriniz</string>
+    <string name="your_youtube_playlists">Raj Music çalma listeleriniz</string>
     <string name="remove_from_playlist">Çalma listesinden kaldır</string>
     <string name="player_text_alignment">Oynatıcı metin hizalaması</string>
     <string name="player_slider_style">Oynatıcı kaydırma biçimi</string>

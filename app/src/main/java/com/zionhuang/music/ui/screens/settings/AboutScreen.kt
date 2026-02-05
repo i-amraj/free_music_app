@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -28,8 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -62,10 +61,10 @@ fun AboutScreen(
         Spacer(Modifier.height(4.dp))
 
         Image(
-            painter = painterResource(R.drawable.launcher_monochrome),
+            painter = painterResource(R.drawable.raj_logo),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onBackground, BlendMode.SrcIn),
             modifier = Modifier
+                .size(64.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable { }
@@ -75,7 +74,7 @@ fun AboutScreen(
             verticalAlignment = Alignment.Top,
         ) {
             Text(
-                text = "InnerTune",
+                text = "Raj Music",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
@@ -131,7 +130,7 @@ fun AboutScreen(
         Spacer(Modifier.height(4.dp))
 
         Text(
-            text = "by Zion Huang",
+            text = "by Raj",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.secondary
         )
@@ -140,7 +139,7 @@ fun AboutScreen(
 
         Row {
             IconButton(
-                onClick = { uriHandler.openUri("https://github.com/z-huang/InnerTune") }
+                onClick = { uriHandler.openUri("https://github.com/i-amraj") }
             ) {
                 Icon(
                     painter = painterResource(R.drawable.github),
@@ -149,19 +148,19 @@ fun AboutScreen(
             }
 
             IconButton(
-                onClick = { uriHandler.openUri("https://liberapay.com/zionhuang") }
+                onClick = { uriHandler.openUri("https://www.instagram.com/i._.amraj") }
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.liberapay),
+                    painter = painterResource(R.drawable.instagram),
                     contentDescription = null
                 )
             }
 
             IconButton(
-                onClick = { uriHandler.openUri("https://www.buymeacoffee.com/zionhuang") }
+                onClick = { uriHandler.openUri("https://www.youtube.com/@3.0_couple/") }
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.buymeacoffee),
+                    painter = painterResource(R.drawable.youtube),
                     contentDescription = null
                 )
             }

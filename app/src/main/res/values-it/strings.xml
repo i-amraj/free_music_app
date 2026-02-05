@@ -25,7 +25,7 @@
     <string name="most_played_artists">Artisti più ascoltati</string>
     <string name="most_played_albums">Album più ascoltati</string>
     <string name="search">Cerca</string>
-    <string name="search_yt_music">Cerca su YouTube Music…</string>
+    <string name="search_yt_music">Cerca su Raj Music…</string>
     <string name="search_library">Cerca nella libreria…</string>
     <string name="filter_library">Libreria</string>
     <string name="filter_liked">Piaciuti</string>
@@ -238,7 +238,7 @@
     <string name="remove_from_queue">Rimuovi dalla coda</string>
     <string name="player_slider_style">Stile slider del player</string>
     <string name="keep_listening">Continua ad ascoltare</string>
-    <string name="your_youtube_playlists">Le tue playlist di YouTube</string>
+    <string name="your_youtube_playlists">Le tue playlist di Raj Music</string>
     <string name="duplicates_description_multiple">La canzone %d è già nella tua playlist</string>
     <string name="duplicates_description_single">La canzone è già nella tua playlist</string>
     <string name="delete_playlist_confirm">Vuoi davvero rimuovere la playlist %s?</string>

@@ -7,7 +7,7 @@
     <string name="account">حساب</string>
     <string name="quick_picks">إختيارات سريعة</string>
     <string name="forgotten_favorites">مفضلات مهملة</string>
-    <string name="your_youtube_playlists">قوائم أغانيك على YouTube</string>
+    <string name="your_youtube_playlists">قوائم أغانيك على Raj Music</string>
     <string name="similar_to">تشبه</string>
     <string name="new_release_albums">ألبومات أصدرت حديثًا</string>
     <string name="today">اليوم</string>
@@ -15,7 +15,7 @@
     <string name="last_week">الأسبوع الماضي</string>
     <string name="most_played_artists">الفنانون الأكثر استماعًا</string>
     <string name="most_played_albums">الألبومات الأكثر استماعًا</string>
-    <string name="search_yt_music">ابحث في YouTube Music…</string>
+    <string name="search_yt_music">ابحث في Raj Music…</string>
     <string name="search_library">ابحث في المكتبة…</string>
     <string name="filter_liked">أعجبك</string>
     <string name="filter_downloaded">تم تنزيلها</string>

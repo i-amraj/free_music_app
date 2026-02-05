@@ -2,11 +2,13 @@ package com.zionhuang.music.ui.screens.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -46,6 +48,7 @@ import com.zionhuang.music.extensions.togglePlayPause
 import com.zionhuang.music.playback.queues.ListQueue
 import com.zionhuang.music.ui.component.AlbumListItem
 import com.zionhuang.music.ui.component.ArtistListItem
+import com.zionhuang.music.ui.component.AnimatedGradientBackground
 import com.zionhuang.music.ui.component.ChipsRow
 import com.zionhuang.music.ui.component.EmptyPlaceholder
 import com.zionhuang.music.ui.component.LocalMenuState
@@ -87,27 +90,29 @@ fun LocalSearchScreen(
         viewModel.query.value = query
     }
 
-    Column {
-        ChipsRow(
-            chips = listOf(
-                LocalFilter.ALL to stringResource(R.string.filter_all),
-                LocalFilter.SONG to stringResource(R.string.filter_songs),
-                LocalFilter.ALBUM to stringResource(R.string.filter_albums),
-                LocalFilter.ARTIST to stringResource(R.string.filter_artists),
-                LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists)
-            ),
-            currentValue = searchFilter,
-            onValueUpdate = { viewModel.filter.value = it },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+        Column {
+            ChipsRow(
+                chips = listOf(
+                    LocalFilter.ALL to stringResource(R.string.filter_all),
+                    LocalFilter.SONG to stringResource(R.string.filter_songs),
+                    LocalFilter.ALBUM to stringResource(R.string.filter_albums),
+                    LocalFilter.ARTIST to stringResource(R.string.filter_artists),
+                    LocalFilter.PLAYLIST to stringResource(R.string.filter_playlists)
+                ),
+                currentValue = searchFilter,
+                onValueUpdate = { viewModel.filter.value = it },
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            )
 
-        LazyColumn(
-            state = lazyListState,
-            contentPadding = WindowInsets.systemBars
-                .only(WindowInsetsSides.Bottom)
-                .asPaddingValues(),
-            modifier = Modifier.weight(1f)
-        ) {
+            LazyColumn(
+                state = lazyListState,
+                contentPadding = WindowInsets.systemBars
+                    .only(WindowInsetsSides.Bottom)
+                    .asPaddingValues(),
+                modifier = Modifier.weight(1f)
+            ) {
             result.map.forEach { (filter, items) ->
                 if (result.filter == LocalFilter.ALL) {
                     item(
@@ -238,6 +243,7 @@ fun LocalSearchScreen(
                         modifier = Modifier.animateItem()
                     )
                 }
+            }
             }
         }
     }

@@ -24,7 +24,7 @@
     <string name="most_played_artists">Legtöbbet játszott előadók</string>
     <string name="most_played_albums">Legtöbbet játszott albumok</string>
     <string name="search">Keresés</string>
-    <string name="search_yt_music">Keresés a YouTube Zenén…</string>
+    <string name="search_yt_music">Keresés a Raj Music Zenén…</string>
     <string name="search_library">Keresés a könyvtárban…</string>
     <string name="filter_library">Könyvtár</string>
     <string name="filter_liked">Kedvelt</string>
@@ -231,7 +231,7 @@
     <string name="remove_download_playlist_confirm">Biztosan el akarja távolítani a \"%s\" lejátszási listán szereplő összes zenét a Letöltött Zenék tárhelyről?</string>
     <string name="delete_playlist_confirm">Biztosan törölni szeretné a \"%s\" lejátszási listát?</string>
     <string name="remove_all_from_library">Az összes eltávolítása a könyvtárból</string>
-    <string name="your_youtube_playlists">YouTube lejátszási listái</string>
+    <string name="your_youtube_playlists">Raj Music lejátszási listái</string>
     <string name="add_all_to_library">Az összes hozzáadása a könyvtárhoz</string>
     <string name="remove_from_playlist">Eltávolítás lejátszási listáról</string>
     <string name="remove_from_queue">Eltávolítás listáról</string>

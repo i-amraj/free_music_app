@@ -29,7 +29,7 @@ class OnlineSearchViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     val query = savedStateHandle.get<String>("query")!!
-    val filter = MutableStateFlow<YouTube.SearchFilter?>(null)
+    val filter = MutableStateFlow<YouTube.SearchFilter?>(YouTube.SearchFilter.FILTER_SONG)
     var summaryPage by mutableStateOf<SearchSummaryPage?>(null)
     val viewStateMap = mutableStateMapOf<String, ItemsPage?>()
 

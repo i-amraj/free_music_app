@@ -68,8 +68,8 @@ fun AppearanceSettings(
     navController: NavController,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
-    val (dynamicTheme, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = true)
-    val (darkMode, onDarkModeChange) = rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val (dynamicTheme, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = false)
+    val (darkMode, onDarkModeChange) = rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.TIME)
     val (pureBlack, onPureBlackChange) = rememberPreference(PureBlackKey, defaultValue = false)
     val (playerTextAlignment, onPlayerTextAlignmentChange) = rememberEnumPreference(PlayerTextAlignmentKey, defaultValue = PlayerTextAlignment.CENTER)
     val (sliderStyle, onSliderStyleChange) = rememberEnumPreference(SliderStyleKey, defaultValue = SliderStyle.DEFAULT)
@@ -78,7 +78,12 @@ fun AppearanceSettings(
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
     val useDarkTheme = remember(darkMode, isSystemInDarkTheme) {
-        if (darkMode == DarkMode.AUTO) isSystemInDarkTheme else darkMode == DarkMode.ON
+        when (darkMode) {
+            DarkMode.ON -> true
+            DarkMode.OFF -> false
+            DarkMode.AUTO -> isSystemInDarkTheme
+            DarkMode.TIME -> isNightByTime()
+        }
     }
 
     var showSliderOptionDialog by rememberSaveable {
@@ -201,6 +206,7 @@ fun AppearanceSettings(
                     DarkMode.ON -> stringResource(R.string.dark_theme_on)
                     DarkMode.OFF -> stringResource(R.string.dark_theme_off)
                     DarkMode.AUTO -> stringResource(R.string.dark_theme_follow_system)
+                    DarkMode.TIME -> stringResource(R.string.dark_theme_time)
                 }
             }
         )
@@ -305,7 +311,12 @@ fun AppearanceSettings(
 }
 
 enum class DarkMode {
-    ON, OFF, AUTO
+    ON, OFF, AUTO, TIME
+}
+
+private fun isNightByTime(): Boolean {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    return hour < 4 || hour >= 17
 }
 
 enum class NavigationTab {

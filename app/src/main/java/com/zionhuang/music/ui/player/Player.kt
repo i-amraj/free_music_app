@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -77,6 +78,7 @@ import com.zionhuang.music.models.MediaMetadata
 import com.zionhuang.music.ui.component.BottomSheet
 import com.zionhuang.music.ui.component.BottomSheetState
 import com.zionhuang.music.ui.component.ResizableIconButton
+import com.zionhuang.music.ui.component.AnimatedGradientBackground
 import com.zionhuang.music.ui.component.rememberBottomSheetState
 import com.zionhuang.music.ui.screens.settings.DarkMode
 import com.zionhuang.music.ui.screens.settings.PlayerTextAlignment
@@ -97,10 +99,17 @@ fun BottomSheetPlayer(
     val playerConnection = LocalPlayerConnection.current ?: return
 
     val isSystemInDarkTheme = isSystemInDarkTheme()
-    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.TIME)
     val pureBlack by rememberPreference(PureBlackKey, defaultValue = false)
-    val useBlackBackground = remember(isSystemInDarkTheme, darkTheme, pureBlack) {
-        val useDarkTheme = if (darkTheme == DarkMode.AUTO) isSystemInDarkTheme else darkTheme == DarkMode.ON
+    val useDarkTheme = remember(isSystemInDarkTheme, darkTheme) {
+        when (darkTheme) {
+            DarkMode.ON -> true
+            DarkMode.OFF -> false
+            DarkMode.AUTO -> isSystemInDarkTheme
+            DarkMode.TIME -> isNightByTime()
+        }
+    }
+    val useBlackBackground = remember(useDarkTheme, pureBlack) {
         useDarkTheme && pureBlack
     }
     val backgroundColor = if (useBlackBackground && state.value > state.collapsedBound) {
@@ -108,6 +117,8 @@ fun BottomSheetPlayer(
     } else {
         MaterialTheme.colorScheme.surfaceContainer
     }
+    val sheetBackground = backgroundColor.copy(alpha = if (useDarkTheme) 0.85f else 0.75f)
+    val overlayAlpha = if (useDarkTheme) 0.55f else 0.45f
 
     val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
     val sliderStyle by rememberEnumPreference(SliderStyleKey, SliderStyle.DEFAULT)
@@ -149,7 +160,7 @@ fun BottomSheetPlayer(
     BottomSheet(
         state = state,
         modifier = modifier,
-        backgroundColor = backgroundColor,
+        backgroundColor = sheetBackground,
         onDismiss = {
             playerConnection.player.stop()
             playerConnection.player.clearMediaItems()
@@ -161,6 +172,14 @@ fun BottomSheetPlayer(
             )
         }
     ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(backgroundColor.copy(alpha = overlayAlpha))
+            )
+        }
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
             val playPauseRoundness by animateDpAsState(
                 targetValue = if (isPlaying) 24.dp else 36.dp,
@@ -445,4 +464,9 @@ fun BottomSheetPlayer(
             navController = navController
         )
     }
+}
+
+private fun isNightByTime(): Boolean {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    return hour < 4 || hour >= 17
 }

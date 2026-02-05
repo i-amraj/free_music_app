@@ -25,7 +25,7 @@
     <string name="most_played_artists">Artistas mais tocados</string>
     <string name="most_played_albums">Álbuns mais tocados</string>
     <string name="search">Pesquisar</string>
-    <string name="search_yt_music">Pesquisar no YouTube Music…</string>
+    <string name="search_yt_music">Pesquisar no Raj Music…</string>
     <string name="search_library">Pesquisar na biblioteca…</string>
     <string name="filter_library">Biblioteca</string>
     <string name="filter_liked">Favoritos</string>
@@ -253,7 +253,7 @@
     <string name="player_slider_style">Estilo do controle deslizante do tocador</string>
     <string name="default_">Padrão</string>
     <string name="squiggly">Cobrinha</string>
-    <string name="your_youtube_playlists">Suas listas do YouTube</string>
+    <string name="your_youtube_playlists">Suas listas do Raj Music</string>
     <string name="action_like_all">Favoritar tudo</string>
     <string name="action_remove_like_all">Remover todos os favoritos</string>
     <string name="grid_cell_size">Tamanho da célula da grade</string>

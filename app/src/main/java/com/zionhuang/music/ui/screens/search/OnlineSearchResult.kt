@@ -228,7 +228,6 @@ fun OnlineSearchResult(
 
     ChipsRow(
         chips = listOf(
-            null to stringResource(R.string.filter_all),
             FILTER_SONG to stringResource(R.string.filter_songs),
             FILTER_VIDEO to stringResource(R.string.filter_videos),
             FILTER_ALBUM to stringResource(R.string.filter_albums),

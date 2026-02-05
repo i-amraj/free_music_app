@@ -59,14 +59,22 @@ fun LoginScreen(
                 webViewClient = object : WebViewClient() {
                     override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
                         if (url.startsWith("https://music.youtube.com")) {
-                            innerTubeCookie = CookieManager.getInstance().getCookie(url)
-                            GlobalScope.launch {
-                                YouTube.accountInfo().onSuccess {
-                                    accountName = it.name
-                                    accountEmail = it.email.orEmpty()
-                                    accountChannelHandle = it.channelHandle.orEmpty()
-                                }.onFailure {
-                                    reportException(it)
+                            val cookie = CookieManager.getInstance().getCookie(url)
+                            if (cookie != null && cookie.contains("SAPISID")) {
+                                innerTubeCookie = cookie
+                                GlobalScope.launch {
+                                    YouTube.cookie = cookie
+                                    YouTube.accountInfo().onSuccess {
+                                        accountName = it.name
+                                        accountEmail = it.email.orEmpty()
+                                        accountChannelHandle = it.channelHandle.orEmpty()
+                                    }.onFailure {
+                                        reportException(it)
+                                    }
+                                }
+                                // Auto-navigate back after successful login
+                                view.post {
+                                    navController.navigateUp()
                                 }
                             }
                         }

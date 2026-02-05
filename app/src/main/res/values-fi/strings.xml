@@ -24,7 +24,7 @@
     <string name="most_played_artists">Eniten soitetut artistit</string>
     <string name="most_played_albums">Eniten soitetut albumit</string>
     <string name="search">Etsi</string>
-    <string name="search_yt_music">Hae YouTube Musicista…</string>
+    <string name="search_yt_music">Hae Raj Musicista…</string>
     <string name="search_library">Hae kirjastosta…</string>
     <string name="filter_library">Kirjasto</string>
     <string name="filter_liked">Tykätty</string>
@@ -190,7 +190,7 @@
     <string name="big">Suuri</string>
     <string name="library_artist_empty">Kirjaston artistit näkyvät täällä</string>
     <string name="keep_listening">Jatka kuuntelemista</string>
-    <string name="your_youtube_playlists">YouTube-soittolistasi</string>
+    <string name="your_youtube_playlists">Raj Music-soittolistasi</string>
     <string name="library_song_empty">Kirjaston kappaleet näkyvät täällä</string>
     <string name="library_album_empty">Kirjaston albumit näkyvät täällä</string>
     <string name="library_playlist_empty">Soittolistasi näkyvät täällä</string>

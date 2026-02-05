@@ -28,7 +28,7 @@
     <string name="most_played_artists">Artistas más reproducidos</string>
     <string name="most_played_albums">Álbumes más reproducidos</string>
     <string name="search">Buscar</string>
-    <string name="search_yt_music">Buscar en YouTube Music…</string>
+    <string name="search_yt_music">Buscar en Raj Music…</string>
     <string name="search_library">Buscar en la biblioteca…</string>
     <string name="filter_library">Biblioteca</string>
     <string name="filter_liked">Me gusta</string>
@@ -276,7 +276,7 @@
     <string name="translation_models">Modelos de traducción</string>
     <string name="clear_translation_models">Borrar modelos de traducción</string>
     <string name="listen_history">Historial de reproducciones</string>
-    <string name="your_youtube_playlists">Sus listas de reproducción de YouTube</string>
+    <string name="your_youtube_playlists">Sus listas de reproducción de Raj Music</string>
     <string name="remove_all_from_library">Quitar todo de la biblioteca</string>
     <string name="search_history">Historial de búsqueda</string>
     <string name="disable_screenshot">Desactivar captura de pantalla</string>

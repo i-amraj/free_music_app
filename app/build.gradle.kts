@@ -37,7 +37,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
-            applicationIdSuffix = ".debug"
+            // No suffix - app will be called "Raj Music"
         }
     }
     flavorDimensions += "version"

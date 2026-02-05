@@ -1,10 +1,12 @@
 package com.zionhuang.music.ui.screens.search
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
@@ -45,6 +47,7 @@ import com.zionhuang.music.constants.SuggestionItemHeight
 import com.zionhuang.music.extensions.togglePlayPause
 import com.zionhuang.music.models.toMediaMetadata
 import com.zionhuang.music.playback.queues.YouTubeQueue
+import com.zionhuang.music.ui.component.AnimatedGradientBackground
 import com.zionhuang.music.ui.component.LocalMenuState
 import com.zionhuang.music.ui.component.SearchBarIconOffsetX
 import com.zionhuang.music.ui.component.YouTubeListItem
@@ -90,152 +93,155 @@ fun OnlineSearchScreen(
         viewModel.query.value = query
     }
 
-    LazyColumn(
-        state = lazyListState,
-        contentPadding = WindowInsets.systemBars
-            .only(WindowInsetsSides.Bottom)
-            .asPaddingValues()
-    ) {
-        items(
-            items = viewState.history,
-            key = { it.query }
-        ) { history ->
-            SuggestionItem(
-                query = history.query,
-                online = false,
-                onClick = {
-                    onSearch(history.query)
-                    onDismiss()
-                },
-                onDelete = {
-                    database.query {
-                        delete(history)
-                    }
-                },
-                onFillTextField = {
-                    onQueryChange(
-                        TextFieldValue(
-                            text = history.query,
-                            selection = TextRange(history.query.length)
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedGradientBackground(modifier = Modifier.fillMaxSize())
+        LazyColumn(
+            state = lazyListState,
+            contentPadding = WindowInsets.systemBars
+                .only(WindowInsetsSides.Bottom)
+                .asPaddingValues()
+        ) {
+            items(
+                items = viewState.history,
+                key = { it.query }
+            ) { history ->
+                SuggestionItem(
+                    query = history.query,
+                    online = false,
+                    onClick = {
+                        onSearch(history.query)
+                        onDismiss()
+                    },
+                    onDelete = {
+                        database.query {
+                            delete(history)
+                        }
+                    },
+                    onFillTextField = {
+                        onQueryChange(
+                            TextFieldValue(
+                                text = history.query,
+                                selection = TextRange(history.query.length)
+                            )
                         )
-                    )
-                },
-                modifier = Modifier.animateItem()
-            )
-        }
-
-        items(
-            items = viewState.suggestions,
-            key = { it }
-        ) { query ->
-            SuggestionItem(
-                query = query,
-                online = true,
-                onClick = {
-                    onSearch(query)
-                    onDismiss()
-                },
-                onFillTextField = {
-                    onQueryChange(
-                        TextFieldValue(
-                            text = query,
-                            selection = TextRange(query.length)
-                        )
-                    )
-                },
-                modifier = Modifier.animateItem()
-            )
-        }
-
-        if (viewState.items.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
-            item {
-                HorizontalDivider()
+                    },
+                    modifier = Modifier.animateItem()
+                )
             }
-        }
 
-        items(
-            items = viewState.items,
-            key = { it.id }
-        ) { item ->
-            YouTubeListItem(
-                item = item,
-                isActive = when (item) {
-                    is SongItem -> mediaMetadata?.id == item.id
-                    is AlbumItem -> mediaMetadata?.album?.id == item.id
-                    else -> false
-                },
-                isPlaying = isPlaying,
-                trailingContent = {
-                    IconButton(
-                        onClick = {
-                            menuState.show {
-                                when (item) {
-                                    is SongItem ->
-                                        YouTubeSongMenu(
-                                            song = item,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss,
-                                        )
+            items(
+                items = viewState.suggestions,
+                key = { it }
+            ) { query ->
+                SuggestionItem(
+                    query = query,
+                    online = true,
+                    onClick = {
+                        onSearch(query)
+                        onDismiss()
+                    },
+                    onFillTextField = {
+                        onQueryChange(
+                            TextFieldValue(
+                                text = query,
+                                selection = TextRange(query.length)
+                            )
+                        )
+                    },
+                    modifier = Modifier.animateItem()
+                )
+            }
 
-                                    is AlbumItem ->
-                                        YouTubeAlbumMenu(
-                                            albumItem = item,
-                                            navController = navController,
-                                            onDismiss = menuState::dismiss,
-                                        )
+            if (viewState.items.isNotEmpty() && viewState.history.size + viewState.suggestions.size > 0) {
+                item {
+                    HorizontalDivider()
+                }
+            }
 
-                                    is ArtistItem ->
-                                        YouTubeArtistMenu(
-                                            artist = item,
-                                            onDismiss = menuState::dismiss,
-                                        )
+            items(
+                items = viewState.items,
+                key = { it.id }
+            ) { item ->
+                YouTubeListItem(
+                    item = item,
+                    isActive = when (item) {
+                        is SongItem -> mediaMetadata?.id == item.id
+                        is AlbumItem -> mediaMetadata?.album?.id == item.id
+                        else -> false
+                    },
+                    isPlaying = isPlaying,
+                    trailingContent = {
+                        IconButton(
+                            onClick = {
+                                menuState.show {
+                                    when (item) {
+                                        is SongItem ->
+                                            YouTubeSongMenu(
+                                                song = item,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
 
-                                    is PlaylistItem ->
-                                        YouTubePlaylistMenu(
-                                            playlist = item,
-                                            coroutineScope = scope,
-                                            onDismiss = menuState::dismiss,
-                                        )
+                                        is AlbumItem ->
+                                            YouTubeAlbumMenu(
+                                                albumItem = item,
+                                                navController = navController,
+                                                onDismiss = menuState::dismiss,
+                                            )
+
+                                        is ArtistItem ->
+                                            YouTubeArtistMenu(
+                                                artist = item,
+                                                onDismiss = menuState::dismiss,
+                                            )
+
+                                        is PlaylistItem ->
+                                            YouTubePlaylistMenu(
+                                                playlist = item,
+                                                coroutineScope = scope,
+                                                onDismiss = menuState::dismiss,
+                                            )
+                                    }
                                 }
                             }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.more_vert),
+                                contentDescription = null
+                            )
                         }
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.more_vert),
-                            contentDescription = null
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .clickable {
-                        when (item) {
-                            is SongItem -> {
-                                if (item.id == mediaMetadata?.id) {
-                                    playerConnection.player.togglePlayPause()
-                                } else {
-                                    playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata()))
+                    },
+                    modifier = Modifier
+                        .clickable {
+                            when (item) {
+                                is SongItem -> {
+                                    if (item.id == mediaMetadata?.id) {
+                                        playerConnection.player.togglePlayPause()
+                                    } else {
+                                        playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata()))
+                                        onDismiss()
+                                    }
+                                }
+
+                                is AlbumItem -> {
+                                    navController.navigate("album/${item.id}")
+                                    onDismiss()
+                                }
+
+                                is ArtistItem -> {
+                                    navController.navigate("artist/${item.id}")
+                                    onDismiss()
+                                }
+
+                                is PlaylistItem -> {
+                                    navController.navigate("online_playlist/${item.id}")
                                     onDismiss()
                                 }
                             }
-
-                            is AlbumItem -> {
-                                navController.navigate("album/${item.id}")
-                                onDismiss()
-                            }
-
-                            is ArtistItem -> {
-                                navController.navigate("artist/${item.id}")
-                                onDismiss()
-                            }
-
-                            is PlaylistItem -> {
-                                navController.navigate("online_playlist/${item.id}")
-                                onDismiss()
-                            }
                         }
-                    }
-                    .animateItem()
-            )
+                        .animateItem()
+                )
+            }
         }
     }
 }

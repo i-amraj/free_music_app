@@ -126,7 +126,9 @@ class InnerTube {
         videoId: String,
         playlistId: String?,
     ) = httpClient.post("player") {
-        ytClient(client, setLogin = true)
+        // Only use login for ANDROID_MUSIC when cookie is available
+        val shouldLogin = cookie != null && client == YouTubeClient.ANDROID_MUSIC
+        ytClient(client, setLogin = shouldLogin)
         setBody(
             PlayerBody(
                 context = client.toContext(locale, visitorData).let {

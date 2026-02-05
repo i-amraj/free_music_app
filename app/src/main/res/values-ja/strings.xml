@@ -17,7 +17,7 @@
     <string name="new_release_albums">新作アルバム</string>
     <string name="forgotten_favorites">忘れられているお気に入り</string>
     <string name="keep_listening">視聴を維持</string>
-    <string name="your_youtube_playlists">あなたのYouTubeの再生リスト</string>
+    <string name="your_youtube_playlists">あなたのRaj Musicの再生リスト</string>
     <string name="similar_to">これに似ている</string>
     <string name="today">今日</string>
     <string name="yesterday">昨日</string>
@@ -27,7 +27,7 @@
     <string name="most_played_artists">最も聴いたアーティスト</string>
     <string name="most_played_albums">最も聴いたアルバム</string>
     <string name="search">検索</string>
-    <string name="search_yt_music">YouTube Music を検索…</string>
+    <string name="search_yt_music">Raj Music を検索…</string>
     <string name="search_library">ライブラリを検索…</string>
     <string name="filter_library">ライブラリ</string>
     <string name="filter_liked">いいね済み</string>

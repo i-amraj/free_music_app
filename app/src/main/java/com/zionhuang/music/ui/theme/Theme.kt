@@ -20,10 +20,11 @@ import com.google.material.color.hct.Hct
 import com.google.material.color.scheme.SchemeTonalSpot
 import com.google.material.color.score.Score
 
-val DefaultThemeColor = Color(0xFF4285F4)
+// Vibrant purple theme color for Raj Music
+val DefaultThemeColor = Color(0xFF9B59B6)
 
 @Composable
-fun InnerTuneTheme(
+fun RajMusicTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,

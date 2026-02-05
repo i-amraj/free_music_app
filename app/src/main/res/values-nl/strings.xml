@@ -24,7 +24,7 @@
     <string name="most_played_artists">Meest afgespeelde artiesten</string>
     <string name="most_played_albums">Meest afgespeelde artiesten</string>
     <string name="search">Zoeken</string>
-    <string name="search_yt_music">Zoeken via YouTube Music…</string>
+    <string name="search_yt_music">Zoeken via Raj Music…</string>
     <string name="search_library">Zoeken in bibliotheek…</string>
     <string name="filter_library">Bibliotheek</string>
     <string name="filter_liked">Geliked</string>
@@ -227,7 +227,7 @@
     <string name="auto_load_more_desc">Voeg indien mogelijk automatisch meer nummers toe wanneer het einde van de wachtrij is bereikt</string>
     <string name="forgotten_favorites">Vergeten favorieten</string>
     <string name="keep_listening">Blijf luisteren</string>
-    <string name="your_youtube_playlists">Je YouTube-afspeellijsten</string>
+    <string name="your_youtube_playlists">Je Raj Music-afspeellijsten</string>
     <string name="similar_to">Vergelijkbaar met</string>
     <string name="library_playlist_empty">Je afspeellijsten worden hier weergegeven</string>
     <string name="library_song_empty">Bibliotheeknummers worden hier weergegeven</string>

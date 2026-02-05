@@ -74,10 +74,9 @@ import com.zionhuang.music.db.entities.Playlist
 import com.zionhuang.music.db.entities.Song
 import com.zionhuang.music.extensions.togglePlayPause
 import com.zionhuang.music.models.toMediaMetadata
-import com.zionhuang.music.playback.queues.LocalAlbumRadio
-import com.zionhuang.music.playback.queues.YouTubeAlbumRadio
 import com.zionhuang.music.playback.queues.YouTubeQueue
 import com.zionhuang.music.ui.component.AlbumGridItem
+import com.zionhuang.music.ui.component.AnimatedGradientBackground
 import com.zionhuang.music.ui.component.ArtistGridItem
 import com.zionhuang.music.ui.component.HideOnScrollFAB
 import com.zionhuang.music.ui.component.LocalMenuState
@@ -99,11 +98,9 @@ import com.zionhuang.music.ui.menu.YouTubeSongMenu
 import com.zionhuang.music.ui.utils.SnapLayoutInfoProvider
 import com.zionhuang.music.utils.rememberPreference
 import com.zionhuang.music.viewmodels.HomeViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.min
-import kotlin.random.Random
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -306,6 +303,8 @@ fun HomeScreen(
             ),
         contentAlignment = Alignment.TopStart
     ) {
+        // Animated gradient background for live motion effect
+        AnimatedGradientBackground()
         val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
         val horizontalLazyGridItemWidth = maxWidth * horizontalLazyGridItemWidthFactor
         val quickPicksSnapLayoutInfoProvider = remember(quickPicksLazyGridState) {
@@ -337,20 +336,6 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .animateItem()
                 ) {
-                    NavigationTile(
-                        title = stringResource(R.string.history),
-                        icon = R.drawable.history,
-                        onClick = { navController.navigate("history") },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    NavigationTile(
-                        title = stringResource(R.string.stats),
-                        icon = R.drawable.trending_up,
-                        onClick = { navController.navigate("stats") },
-                        modifier = Modifier.weight(1f)
-                    )
-
                     if (isLoggedIn) {
                         NavigationTile(
                             title = stringResource(R.string.account),
@@ -515,13 +500,28 @@ fun HomeScreen(
 
             accountPlaylists?.takeIf { it.isNotEmpty() }?.let { accountPlaylists ->
                 item {
-                    NavigationTitle(
-                        title = stringResource(R.string.your_youtube_playlists),
-                        onClick = {
-                            navController.navigate("account")
-                        },
-                        modifier = Modifier.animateItem()
-                    )
+                    Row(
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                            .animateItem(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NavigationTitle(
+                            title = stringResource(R.string.your_youtube_playlists),
+                            onClick = {
+                                navController.navigate("account")
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        NavigationTile(
+                            title = stringResource(R.string.history),
+                            icon = R.drawable.history,
+                            onClick = { navController.navigate("history") }
+                        )
+                    }
                 }
 
                 item {
@@ -539,6 +539,7 @@ fun HomeScreen(
                         }
                     }
                 }
+
             }
 
             similarRecommendations?.forEach {
@@ -725,45 +726,10 @@ fun HomeScreen(
         }
 
         HideOnScrollFAB(
-            visible = allLocalItems.isNotEmpty() || allYtItems.isNotEmpty(),
+            visible = true,
             lazyListState = lazylistState,
-            icon = R.drawable.casino,
-            onClick = {
-                val local = when {
-                    allLocalItems.isNotEmpty() && allYtItems.isNotEmpty() -> Random.nextFloat() < 0.5
-                    allLocalItems.isNotEmpty() -> true
-                    else -> false
-                }
-                if (local) {
-                    when (val luckyItem = allLocalItems.random()) {
-                        is Song -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
-                        is Album -> {
-                            scope.launch(Dispatchers.IO) {
-                                database.albumWithSongs(luckyItem.id).first()?.let {
-                                    playerConnection.playQueue(
-                                        LocalAlbumRadio(it)
-                                    )
-                                }
-                            }
-                        }
-                        // not possible, already filtered out
-                        is Artist -> {}
-                        is Playlist -> {}
-                    }
-                } else {
-                    when (val luckyItem = allYtItems.random()) {
-                        is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(luckyItem.toMediaMetadata()))
-                        is AlbumItem -> playerConnection.playQueue(YouTubeAlbumRadio(luckyItem.playlistId))
-                        is ArtistItem -> luckyItem.radioEndpoint?.let {
-                            playerConnection.playQueue(YouTubeQueue(it))
-                        }
-
-                        is PlaylistItem -> luckyItem.playEndpoint?.let {
-                            playerConnection.playQueue(YouTubeQueue(it))
-                        }
-                    }
-                }
-            }
+            icon = R.drawable.history,
+            onClick = { navController.navigate("history") }
         )
 
         Indicator(
