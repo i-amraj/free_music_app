@@ -247,10 +247,8 @@ class MainActivity : ComponentActivity() {
             }
             
             LaunchedEffect(Unit) {
-                if (System.currentTimeMillis() - Updater.lastCheckTime > 1.days.inWholeMilliseconds) {
-                    Updater.getLatestVersionName().onSuccess {
-                        latestVersionName = it
-                    }
+                Updater.checkForUpdate().onSuccess {
+                    latestVersionName = it.versionName
                 }
             }
 

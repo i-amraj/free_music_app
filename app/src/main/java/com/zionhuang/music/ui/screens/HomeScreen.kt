@@ -126,6 +126,10 @@ fun HomeScreen(
 
     val allLocalItems by viewModel.allLocalItems.collectAsState()
     val allYtItems by viewModel.allYtItems.collectAsState()
+    
+    val updateVersionName by viewModel.updateVersionName.collectAsState()
+    val updateUrl by viewModel.updateUrl.collectAsState()
+    val updateReleaseNotes by viewModel.updateReleaseNotes.collectAsState()
 
     val isLoading by viewModel.isLoading.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -303,6 +307,33 @@ fun HomeScreen(
             ),
         contentAlignment = Alignment.TopStart
     ) {
+        updateVersionName?.let { versionName ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { viewModel.updateVersionName.value = null },
+                title = { androidx.compose.material3.Text("New Update Available: $versionName") },
+                text = { androidx.compose.material3.Text(updateReleaseNotes?.ifEmpty { null } ?: "A new version of Raj Music is available. Please update to enjoy the latest features.") },
+                confirmButton = {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(updateUrl ?: ""))
+                            context.startActivity(intent)
+                            viewModel.updateVersionName.value = null
+                        }
+                    ) {
+                        androidx.compose.material3.Text("Update Now")
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(
+                        onClick = { viewModel.updateVersionName.value = null }
+                    ) {
+                        androidx.compose.material3.Text("Later")
+                    }
+                }
+            )
+        }
+
         // Animated gradient background for live motion effect
         AnimatedGradientBackground()
         val horizontalLazyGridItemWidthFactor = if (maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f

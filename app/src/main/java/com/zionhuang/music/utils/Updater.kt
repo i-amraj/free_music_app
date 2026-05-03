@@ -1,20 +1,25 @@
 package com.zionhuang.music.utils
 
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
+import com.zionhuang.music.models.UpdateInfo
 import org.json.JSONObject
 
 object Updater {
-    private val client = HttpClient()
     var lastCheckTime = -1L
         private set
 
-    suspend fun getLatestVersionName(): Result<String> = runCatching {
-        val response = client.get("https://api.github.com/repos/z-huang/InnerTune/releases/latest").bodyAsText()
+    suspend fun checkForUpdate(): Result<UpdateInfo> = runCatching {
+        // Aap yaha apna portfolio ka update.json URL dalenge
+        val response = java.net.URL("https://iamraj.me/raj_music/update.json").readText()
         val json = JSONObject(response)
-        val versionName = json.getString("name")
+        
+        val updateInfo = UpdateInfo(
+            versionCode = json.getInt("versionCode"),
+            versionName = json.getString("versionName"),
+            updateUrl = json.getString("updateUrl"),
+            releaseNotes = json.optString("releaseNotes", "")
+        )
+        
         lastCheckTime = System.currentTimeMillis()
-        versionName
+        updateInfo
     }
 }

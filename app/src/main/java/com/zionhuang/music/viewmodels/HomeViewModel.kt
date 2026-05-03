@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.zionhuang.music.utils.Updater
+import com.zionhuang.music.BuildConfig
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -43,6 +46,10 @@ class HomeViewModel @Inject constructor(
     val accountPlaylists = MutableStateFlow<List<PlaylistItem>?>(null)
     val homePage = MutableStateFlow<HomePage?>(null)
     val explorePage = MutableStateFlow<ExplorePage?>(null)
+
+    val updateVersionName = MutableStateFlow<String?>(null)
+    val updateUrl = MutableStateFlow<String?>(null)
+    val updateReleaseNotes = MutableStateFlow<String?>(null)
 
     val allLocalItems = MutableStateFlow<List<LocalItem>>(emptyList())
     val allYtItems = MutableStateFlow<List<YTItem>>(emptyList())
@@ -166,6 +173,18 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch(Dispatchers.IO) {
             load()
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            Updater.checkForUpdate().onSuccess { info ->
+                if (info.versionCode > BuildConfig.VERSION_CODE) {
+                    updateVersionName.value = info.versionName
+                    updateUrl.value = info.updateUrl
+                    updateReleaseNotes.value = info.releaseNotes
+                }
+            }.onFailure {
+                // Ignore gracefully if file not found or no internet
+                it.printStackTrace()
+            }
         }
     }
 }
