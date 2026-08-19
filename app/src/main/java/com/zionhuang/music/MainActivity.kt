@@ -43,9 +43,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +57,9 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.contentColorFor
+import com.zionhuang.music.models.UpdateInfo
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -246,9 +250,14 @@ class MainActivity : ComponentActivity() {
                 return@setContent
             }
             
+            var updateInfoToPrompt by remember { mutableStateOf<UpdateInfo?>(null) }
+
             LaunchedEffect(Unit) {
-                Updater.checkForUpdate().onSuccess {
-                    latestVersionName = it.versionName
+                Updater.checkForUpdate().onSuccess { update ->
+                    latestVersionName = update.versionName
+                    if (update.versionCode > BuildConfig.VERSION_CODE || update.versionName != BuildConfig.VERSION_NAME) {
+                        updateInfoToPrompt = update
+                    }
                 }
             }
 
@@ -297,6 +306,55 @@ class MainActivity : ComponentActivity() {
                 pureBlack = pureBlack,
                 themeColor = themeColor
             ) {
+                updateInfoToPrompt?.let { update ->
+                    val context = LocalContext.current
+                    AlertDialog(
+                        onDismissRequest = { updateInfoToPrompt = null },
+                        icon = {
+                            Icon(
+                                painter = painterResource(R.drawable.update),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        title = {
+                            Text(
+                                text = "New Update Available (v${update.versionName})",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        },
+                        text = {
+                            Column {
+                                Text(
+                                    text = if (update.releaseNotes.isNotBlank()) update.releaseNotes else "A new version of Raj Music is available. Update now for the best experience!",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    updateInfoToPrompt = null
+                                    try {
+                                        val intent = Intent(Intent.ACTION_VIEW, update.updateUrl.toUri())
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Could not open update link", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            ) {
+                                Text("Update Now")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(
+                                onClick = { updateInfoToPrompt = null }
+                            ) {
+                                Text("Later")
+                            }
+                        }
+                    )
+                }
                 BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()

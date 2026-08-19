@@ -146,10 +146,25 @@ class InnerTube {
         )
     }
 
-    suspend fun pipedStreams(videoId: String) =
-        httpClient.get("https://pipedapi.kavin.rocks/streams/${videoId}") {
+    suspend fun pipedStreams(videoId: String): io.ktor.client.statement.HttpResponse {
+        val instances = listOf(
+            "https://pipedapi.kavin.rocks",
+            "https://api.piped.privacydev.net",
+            "https://pipedapi.mha.fi",
+            "https://pipedapi.palapapa.com"
+        )
+        for (instance in instances) {
+            runCatching {
+                val res = httpClient.get("$instance/streams/$videoId") {
+                    contentType(ContentType.Application.Json)
+                }
+                if (res.status.value in 200..299) return res
+            }
+        }
+        return httpClient.get("https://pipedapi.kavin.rocks/streams/$videoId") {
             contentType(ContentType.Application.Json)
         }
+    }
 
     suspend fun browse(
         client: YouTubeClient,

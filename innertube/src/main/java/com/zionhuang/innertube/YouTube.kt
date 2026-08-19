@@ -8,6 +8,7 @@ import com.zionhuang.innertube.models.BrowseEndpoint
 import com.zionhuang.innertube.models.GridRenderer
 import com.zionhuang.innertube.models.MusicCarouselShelfRenderer
 import com.zionhuang.innertube.models.PlaylistItem
+import com.zionhuang.innertube.models.ResponseContext
 import com.zionhuang.innertube.models.SearchSuggestions
 import com.zionhuang.innertube.models.SongItem
 import com.zionhuang.innertube.models.WatchEndpoint
@@ -432,42 +433,107 @@ object YouTube {
     }
 
     suspend fun player(videoId: String, playlistId: String? = null): Result<PlayerResponse> = runCatching {
-        // Try ANDROID_VR_NO_AUTH first - this works WITHOUT login (from OuterTune)
-        var playerResponse = innerTube.player(ANDROID_VR_NO_AUTH, videoId, playlistId).body<PlayerResponse>()
-        if (playerResponse.playabilityStatus.status == "OK" && playerResponse.streamingData != null) {
+        fun processPlayerResponse(resp: PlayerResponse): PlayerResponse {
+            val serverAbrUrl = resp.streamingData?.serverAbrStreamingUrl
+            if (serverAbrUrl.isNullOrEmpty()) return resp
+            val updatedAdaptive = resp.streamingData.adaptiveFormats.map { fmt ->
+                if (fmt.url.isNullOrEmpty()) fmt.copy(url = serverAbrUrl) else fmt
+            }
+            val updatedFormats = resp.streamingData.formats?.map { fmt ->
+                if (fmt.url.isNullOrEmpty()) fmt.copy(url = serverAbrUrl) else fmt
+            }
+            return resp.copy(
+                streamingData = resp.streamingData.copy(
+                    adaptiveFormats = updatedAdaptive,
+                    formats = updatedFormats
+                )
+            )
+        }
+
+        fun isValidPlayerResponse(resp: PlayerResponse): Boolean {
+            if (resp.playabilityStatus.status != "OK") return false
+            val adaptiveFormats = resp.streamingData?.adaptiveFormats
+            val formats = resp.streamingData?.formats
+            return adaptiveFormats?.any { it.isAudio && !it.url.isNullOrEmpty() } == true ||
+                   formats?.any { it.isAudio && !it.url.isNullOrEmpty() } == true
+        }
+
+        // 1. Try IOS client first (most reliable stream resolution)
+        var playerResponse = processPlayerResponse(innerTube.player(IOS, videoId, playlistId).body<PlayerResponse>())
+        if (isValidPlayerResponse(playerResponse)) {
             return@runCatching playerResponse
         }
-        
-        // Try IOS client
-        playerResponse = innerTube.player(IOS, videoId, playlistId).body<PlayerResponse>()
-        if (playerResponse.playabilityStatus.status == "OK" && playerResponse.streamingData != null) {
+
+        // 2. Try ANDROID client
+        playerResponse = processPlayerResponse(innerTube.player(ANDROID, videoId, playlistId).body<PlayerResponse>())
+        if (isValidPlayerResponse(playerResponse)) {
             return@runCatching playerResponse
         }
-        
-        // Try ANDROID client
-        playerResponse = innerTube.player(ANDROID, videoId, playlistId).body<PlayerResponse>()
-        if (playerResponse.playabilityStatus.status == "OK" && playerResponse.streamingData != null) {
+
+        // 3. Try ANDROID_VR_NO_AUTH
+        playerResponse = processPlayerResponse(innerTube.player(ANDROID_VR_NO_AUTH, videoId, playlistId).body<PlayerResponse>())
+        if (isValidPlayerResponse(playerResponse)) {
             return@runCatching playerResponse
         }
-        
-        // Try WEB_REMIX
-        playerResponse = innerTube.player(WEB_REMIX, videoId, playlistId).body<PlayerResponse>()
-        if (playerResponse.playabilityStatus.status == "OK" && playerResponse.streamingData != null) {
+
+        // 4. Try WEB_REMIX
+        playerResponse = processPlayerResponse(innerTube.player(WEB_REMIX, videoId, playlistId).body<PlayerResponse>())
+        if (isValidPlayerResponse(playerResponse)) {
             return@runCatching playerResponse
         }
-        
-        // Try ANDROID_MUSIC if logged in
+
+        // 5. Try ANDROID_MUSIC if logged in
         if (this.cookie != null) {
-            playerResponse = innerTube.player(ANDROID_MUSIC, videoId, playlistId).body<PlayerResponse>()
-            if (playerResponse.playabilityStatus.status == "OK" && playerResponse.streamingData != null) {
+            playerResponse = processPlayerResponse(innerTube.player(ANDROID_MUSIC, videoId, playlistId).body<PlayerResponse>())
+            if (isValidPlayerResponse(playerResponse)) {
                 return@runCatching playerResponse
             }
         }
-        
-        // Final fallback: TVHTML5
-        val tvResponse = innerTube.player(TVHTML5, videoId, playlistId).body<PlayerResponse>()
-        if (tvResponse.playabilityStatus.status == "OK" && tvResponse.streamingData != null) {
+
+        // 6. Try TVHTML5
+        val tvResponse = processPlayerResponse(innerTube.player(TVHTML5, videoId, playlistId).body<PlayerResponse>())
+        if (isValidPlayerResponse(tvResponse)) {
             return@runCatching tvResponse
+        }
+
+        // Fallback: Try Piped API if YouTube clients fail to return valid audio stream URLs
+        runCatching {
+            val pipedHttpResponse = innerTube.pipedStreams(videoId)
+            val pipedResponse = pipedHttpResponse.body<PipedResponse>()
+            if (pipedResponse.audioStreams.isNotEmpty()) {
+                val formats = pipedResponse.audioStreams.map { stream ->
+                    PlayerResponse.StreamingData.Format(
+                        itag = stream.itag,
+                        url = stream.url,
+                        mimeType = "audio/webm; codecs=\"opus\"",
+                        bitrate = stream.bitrate,
+                        width = null,
+                        height = null,
+                        contentLength = 5000000L,
+                        quality = "MEDIUM",
+                        fps = null,
+                        qualityLabel = null,
+                        averageBitrate = stream.bitrate,
+                        audioQuality = "AUDIO_QUALITY_MEDIUM",
+                        approxDurationMs = null,
+                        audioSampleRate = 48000,
+                        audioChannels = 2,
+                        loudnessDb = null,
+                        lastModified = System.currentTimeMillis()
+                    )
+                }
+                return@runCatching PlayerResponse(
+                    responseContext = ResponseContext(visitorData = null, serviceTrackingParams = null),
+                    playabilityStatus = PlayerResponse.PlayabilityStatus(status = "OK", reason = null),
+                    playerConfig = null,
+                    streamingData = PlayerResponse.StreamingData(
+                        formats = formats,
+                        adaptiveFormats = formats,
+                        expiresInSeconds = 21600
+                    ),
+                    videoDetails = playerResponse.videoDetails
+                )
+            }
         }
         
         // Return the last response even if not OK

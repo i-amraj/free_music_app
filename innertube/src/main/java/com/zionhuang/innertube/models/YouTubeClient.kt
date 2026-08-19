@@ -8,6 +8,9 @@ data class YouTubeClient(
     val clientVersion: String,
     val api_key: String,
     val userAgent: String,
+    val deviceMake: String? = null,
+    val deviceModel: String? = null,
+    val osName: String? = null,
     val osVersion: String? = null,
     val referer: String? = null,
 ) {
@@ -15,6 +18,9 @@ data class YouTubeClient(
         client = Context.Client(
             clientName = clientName,
             clientVersion = clientVersion,
+            deviceMake = deviceMake,
+            deviceModel = deviceModel,
+            osName = osName,
             osVersion = osVersion,
             gl = locale.gl,
             hl = locale.hl,
@@ -25,22 +31,24 @@ data class YouTubeClient(
     companion object {
         private const val REFERER_YOUTUBE_MUSIC = "https://music.youtube.com/"
 
-        private const val USER_AGENT_WEB = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        private const val USER_AGENT_ANDROID = "com.google.android.youtube/19.44.38 (Linux; U; Android 14; en_US) gzip"
-        private const val USER_AGENT_IOS = "com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_1 like Mac OS X;)"
+        private const val USER_AGENT_WEB = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        private const val USER_AGENT_ANDROID = "com.google.android.youtube/21.26.364 (Linux; U; Android 11) gzip"
+        private const val USER_AGENT_IOS = "com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)"
 
         val ANDROID_MUSIC = YouTubeClient(
             clientName = "ANDROID_MUSIC",
-            clientVersion = "7.27.52",
+            clientVersion = "7.29.51",
             api_key = "AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI",
             userAgent = USER_AGENT_ANDROID
         )
 
         val ANDROID = YouTubeClient(
             clientName = "ANDROID",
-            clientVersion = "19.44.38",
+            clientVersion = "21.26.364",
             api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
             userAgent = USER_AGENT_ANDROID,
+            osName = "Android",
+            osVersion = "11",
         )
 
         val WEB = YouTubeClient(
@@ -52,7 +60,7 @@ data class YouTubeClient(
 
         val WEB_REMIX = YouTubeClient(
             clientName = "WEB_REMIX",
-            clientVersion = "1.20241120.01.00",
+            clientVersion = "1.20241113.01.00",
             api_key = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30",
             userAgent = USER_AGENT_WEB,
             referer = REFERER_YOUTUBE_MUSIC
@@ -67,18 +75,20 @@ data class YouTubeClient(
 
         val IOS = YouTubeClient(
             clientName = "IOS",
-            clientVersion = "19.45.4",
+            clientVersion = "20.01.1",
             api_key = "AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc",
-            userAgent = USER_AGENT_IOS,
-            osVersion = "18.1.1.22B91",
+            userAgent = "com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)",
+            deviceMake = "Apple",
+            deviceModel = "iPhone16,2",
+            osName = "iPhone",
+            osVersion = "18.2.1.22C161",
         )
 
-        // This client works WITHOUT login - key fix from OuterTune
         val ANDROID_VR_NO_AUTH = YouTubeClient(
             clientName = "ANDROID_VR",
-            clientVersion = "1.61.48",
+            clientVersion = "1.57.19",
             api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
-            userAgent = "com.google.android.apps.youtube.vr.oculus/1.61.48 (Linux; U; Android 12; en_US; Oculus Quest 3; Build/SQ3A.220605.009.A1; Cronet/132.0.6808.3)",
+            userAgent = "com.google.android.apps.youtube.vr.oculus/1.57.19 (Linux; U; Android 12; en_US; Oculus Quest 2; Build/SQ3A.220605.009.A1; Cronet/116.0.5845.240)",
         )
     }
 }
