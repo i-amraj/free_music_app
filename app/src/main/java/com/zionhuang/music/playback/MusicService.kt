@@ -611,7 +611,9 @@ class MusicService : MediaLibraryService(),
                                 OkHttpClient.Builder()
                                     .proxy(YouTube.proxy)
                                     .build()
-                            )
+                            ).apply {
+                                setUserAgent("com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)")
+                            }
                         )
                     )
             )
@@ -630,7 +632,7 @@ class MusicService : MediaLibraryService(),
                 return@Factory dataSpec
             }
 
-            songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
+            songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
@@ -654,7 +656,7 @@ class MusicService : MediaLibraryService(),
                 }
             }
             if (playerResponse.playabilityStatus.status != "OK") {
-                throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+                throw PlaybackException(playerResponse.playabilityStatus.reason ?: getString(R.string.error_unknown), null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
             }
 
             val format =
@@ -684,14 +686,15 @@ class MusicService : MediaLibraryService(),
                         codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                         bitrate = format.bitrate,
                         sampleRate = format.audioSampleRate,
-                        contentLength = format.contentLength!!,
+                        contentLength = format.contentLength ?: 5000000L,
                         loudnessDb = playerResponse.playerConfig?.audioConfig?.loudnessDb
                     )
                 )
             }
             scope.launch(Dispatchers.IO) { recoverSong(mediaId, playerResponse) }
 
-            songUrlCache[mediaId] = format.url!! to playerResponse.streamingData!!.expiresInSeconds * 1000L
+            val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
+            songUrlCache[mediaId] = format.url!! to (System.currentTimeMillis() + expiresInMs)
             dataSpec.withUri(format.url!!.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
         }
     }

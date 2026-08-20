@@ -53,7 +53,9 @@ class DownloadUtil @Inject constructor(
                     OkHttpClient.Builder()
                         .proxy(YouTube.proxy)
                         .build()
-                )
+                ).apply {
+                    setUserAgent("com.google.ios.youtube/20.01.1 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)")
+                }
             )
     ) { dataSpec ->
         val mediaId = dataSpec.key ?: error("No media id")
@@ -63,7 +65,7 @@ class DownloadUtil @Inject constructor(
             return@Factory dataSpec
         }
 
-        songUrlCache[mediaId]?.takeIf { it.second < System.currentTimeMillis() }?.let {
+        songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
             return@Factory dataSpec.withUri(it.first.toUri())
         }
 
@@ -72,7 +74,7 @@ class DownloadUtil @Inject constructor(
             YouTube.player(mediaId)
         }.getOrThrow()
         if (playerResponse.playabilityStatus.status != "OK") {
-            throw PlaybackException(playerResponse.playabilityStatus.reason, null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+            throw PlaybackException(playerResponse.playabilityStatus.reason ?: "Unknown error", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
         }
 
         val format =
@@ -102,13 +104,14 @@ class DownloadUtil @Inject constructor(
                     codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
                     bitrate = format.bitrate,
                     sampleRate = format.audioSampleRate,
-                    contentLength = format.contentLength!!,
+                    contentLength = format.contentLength ?: 5000000L,
                     loudnessDb = playerResponse.playerConfig?.audioConfig?.loudnessDb
                 )
             )
         }
 
-        songUrlCache[mediaId] = format.url!! to playerResponse.streamingData!!.expiresInSeconds * 1000L
+        val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
+        songUrlCache[mediaId] = format.url!! to (System.currentTimeMillis() + expiresInMs)
         dataSpec.withUri(format.url!!.toUri())
     }
     val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
