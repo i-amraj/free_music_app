@@ -254,8 +254,8 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 Updater.checkForUpdate().onSuccess { update ->
-                    latestVersionName = update.versionName
-                    if (update.versionCode > BuildConfig.VERSION_CODE || update.versionName != BuildConfig.VERSION_NAME) {
+                    if (update.versionCode > BuildConfig.VERSION_CODE) {
+                        latestVersionName = update.versionName
                         updateInfoToPrompt = update
                     }
                 }
