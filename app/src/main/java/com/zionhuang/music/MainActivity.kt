@@ -254,10 +254,13 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 Updater.checkForUpdate().onSuccess { update ->
+                    android.util.Log.d("UPDATE_CHECK", "Server versionCode=${update.versionCode}, Local VERSION_CODE=${BuildConfig.VERSION_CODE}")
                     if (update.versionCode > BuildConfig.VERSION_CODE) {
                         latestVersionName = update.versionName
                         updateInfoToPrompt = update
                     }
+                }.onFailure {
+                    android.util.Log.e("UPDATE_CHECK", "Update check failed", it)
                 }
             }
 

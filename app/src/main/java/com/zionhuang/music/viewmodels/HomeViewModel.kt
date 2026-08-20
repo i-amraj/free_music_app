@@ -176,14 +176,14 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch(Dispatchers.IO) {
             Updater.checkForUpdate().onSuccess { info ->
+                android.util.Log.d("HOME_UPDATE_CHECK", "Server versionCode=${info.versionCode}, Local VERSION_CODE=${BuildConfig.VERSION_CODE}")
                 if (info.versionCode > BuildConfig.VERSION_CODE) {
                     updateVersionName.value = info.versionName
                     updateUrl.value = info.updateUrl
                     updateReleaseNotes.value = info.releaseNotes
                 }
             }.onFailure {
-                // Ignore gracefully if file not found or no internet
-                it.printStackTrace()
+                android.util.Log.e("HOME_UPDATE_CHECK", "Home update check failed", it)
             }
         }
     }
