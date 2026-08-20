@@ -624,9 +624,10 @@ class MusicService : MediaLibraryService(),
         val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
+            val length = if (dataSpec.length >= 0) dataSpec.length else 1
 
-            if (downloadCache.isCached(mediaId, dataSpec.position, if (dataSpec.length >= 0) dataSpec.length else 1) ||
-                playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)
+            if (downloadCache.isCached(mediaId, dataSpec.position, length) ||
+                playerCache.isCached(mediaId, dataSpec.position, length)
             ) {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec
@@ -695,7 +696,7 @@ class MusicService : MediaLibraryService(),
 
             val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
             songUrlCache[mediaId] = format.url!! to (System.currentTimeMillis() + expiresInMs)
-            dataSpec.withUri(format.url!!.toUri()).subrange(dataSpec.uriPositionOffset, CHUNK_LENGTH)
+            dataSpec.withUri(format.url!!.toUri())
         }
     }
 
