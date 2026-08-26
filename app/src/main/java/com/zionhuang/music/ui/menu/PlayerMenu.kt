@@ -75,6 +75,7 @@ fun PlayerMenu(
     navController: NavController,
     bottomSheetState: BottomSheetState,
     onShowDetailsDialog: () -> Unit = {},
+    onShowSleepTimerDialog: () -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     mediaMetadata ?: return
@@ -272,7 +273,7 @@ fun PlayerMenu(
             val intent = Intent().apply {
                 action = Intent.ACTION_SEND
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=${mediaMetadata.id}")
+                putExtra(Intent.EXTRA_TEXT, "Listen to ${mediaMetadata.title} on Raj Music: https://iamraj.me/projects/raj-music.html")
             }
             context.startActivity(Intent.createChooser(intent, null))
             onDismiss()
@@ -283,6 +284,13 @@ fun PlayerMenu(
             title = R.string.details
         ) {
             onShowDetailsDialog()
+            onDismiss()
+        }
+        GridMenuItem(
+            icon = R.drawable.bedtime,
+            title = R.string.sleep_timer
+        ) {
+            onShowSleepTimerDialog()
             onDismiss()
         }
         GridMenuItem(

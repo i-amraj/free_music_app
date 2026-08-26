@@ -89,6 +89,27 @@ data class YouTubeClient(
             clientVersion = "1.57.19",
             api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
             userAgent = "com.google.android.apps.youtube.vr.oculus/1.57.19 (Linux; U; Android 12; en_US; Oculus Quest 2; Build/SQ3A.220605.009.A1; Cronet/116.0.5845.240)",
+            deviceMake = "Oculus",
+            deviceModel = "Oculus Quest 2",
+            osName = "Android",
+            osVersion = "12",
+        )
+
+        val ANDROID_TESTSUITE = YouTubeClient(
+            clientName = "ANDROID_TESTSUITE",
+            clientVersion = "1.9",
+            api_key = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w",
+            userAgent = "com.google.android.youtube/1.9 (Linux; U; Android 11)",
+            osName = "Android",
+            osVersion = "11",
+        )
+
+        val WEB_EMBEDDED_PLAYER = YouTubeClient(
+            clientName = "WEB_EMBEDDED_PLAYER",
+            clientVersion = "1.20241126.01.00",
+            api_key = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX3",
+            userAgent = USER_AGENT_WEB,
+            referer = "https://www.youtube.com/"
         )
     }
 }

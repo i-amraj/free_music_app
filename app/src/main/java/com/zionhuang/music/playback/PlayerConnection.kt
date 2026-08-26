@@ -10,10 +10,12 @@ import androidx.media3.common.Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM
 import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Timeline
-import com.zionhuang.music.constants.TranslateLyricsKey
+import com.zionhuang.music.constants.LyricsLanguage
+import com.zionhuang.music.constants.LyricsLanguageKey
 import com.zionhuang.music.db.MusicDatabase
 import com.zionhuang.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.zionhuang.music.extensions.currentMetadata
+import com.zionhuang.music.extensions.toEnum
 import com.zionhuang.music.extensions.getCurrentQueueIndex
 import com.zionhuang.music.extensions.getQueueWindows
 import com.zionhuang.music.extensions.metadata
@@ -54,16 +56,16 @@ class PlayerConnection(
     val translating = MutableStateFlow(false)
     val currentLyrics = combine(
         context.dataStore.data.map {
-            it[TranslateLyricsKey] ?: false
+            it[LyricsLanguageKey].toEnum(LyricsLanguage.ORIGINAL)
         }.distinctUntilChanged(),
         mediaMetadata.flatMapLatest { mediaMetadata ->
             database.lyrics(mediaMetadata?.id)
         }
-    ) { translateEnabled, lyrics ->
-        if (!translateEnabled || lyrics == null || lyrics.lyrics == LYRICS_NOT_FOUND) return@combine lyrics
+    ) { targetLanguage, lyrics ->
+        if (targetLanguage == LyricsLanguage.ORIGINAL || lyrics == null || lyrics.lyrics == LYRICS_NOT_FOUND) return@combine lyrics
         translating.value = true
         try {
-            TranslationHelper.translate(lyrics)
+            TranslationHelper.translate(lyrics, targetLanguage)
         } catch (e: Exception) {
             reportException(e)
             lyrics

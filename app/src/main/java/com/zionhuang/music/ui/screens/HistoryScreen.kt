@@ -256,12 +256,15 @@ fun HistoryScreen(
             lazyListState = lazyListState,
             icon = R.drawable.shuffle,
             onClick = {
-                playerConnection.playQueue(
-                    ListQueue(
-                        title = context.getString(R.string.history),
-                        items = filteredEventIndex.values.map { it.song.toMediaItem() }.shuffled(),
+                val historySongs = filteredEventsMap.values.flatten().map { it.song.toMediaItem() }.distinctBy { it.mediaId }
+                if (historySongs.isNotEmpty()) {
+                    playerConnection.playQueue(
+                        ListQueue(
+                            title = context.getString(R.string.history),
+                            items = historySongs.shuffled(),
+                        )
                     )
-                )
+                }
             }
         )
     }

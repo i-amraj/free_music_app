@@ -1,10 +1,15 @@
 <resources>
     <!-- Bottom navigation -->
     <string name="home">Home</string>
+    <string name="explore">Explore</string>
+    <string name="library">Library</string>
     <string name="songs">Songs</string>
     <string name="artists">Artists</string>
     <string name="albums">Albums</string>
     <string name="playlists">Playlists</string>
+    <string name="new_releases">New releases</string>
+    <string name="charts">Charts</string>
+    <string name="top_10_songs">Top 10 Songs</string>
 
     <!-- Top bar -->
     <plurals name="n_selected">

@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
@@ -30,6 +32,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -39,16 +42,31 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.zionhuang.innertube.YouTube
+import com.zionhuang.innertube.models.AlbumItem
+import com.zionhuang.innertube.models.ArtistItem
+import com.zionhuang.innertube.models.PlaylistItem
+import com.zionhuang.innertube.models.SongItem
+import com.zionhuang.innertube.models.WatchEndpoint
+import com.zionhuang.innertube.models.YTItem
+import com.zionhuang.music.models.toMediaMetadata
+import com.zionhuang.music.playback.queues.YouTubeQueue
+import com.zionhuang.music.ui.component.YouTubeListItem
+import kotlinx.coroutines.withContext
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -90,6 +108,7 @@ import com.zionhuang.music.extensions.togglePlayPause
 import com.zionhuang.music.ui.component.BottomSheet
 import com.zionhuang.music.ui.component.BottomSheetState
 import com.zionhuang.music.ui.component.LocalMenuState
+import com.zionhuang.music.ui.component.Lyrics
 import com.zionhuang.music.ui.component.MediaMetadataListItem
 import com.zionhuang.music.ui.menu.MediaMetadataMenu
 import com.zionhuang.music.ui.menu.PlayerMenu
@@ -130,6 +149,8 @@ fun Queue(
 
     var showLyrics by rememberPreference(ShowLyricsKey, defaultValue = false)
     var lockQueue by rememberPreference(LockQueueKey, defaultValue = false)
+
+    var selectedQueueTab by remember { mutableStateOf(0) }
 
     var inSelectMode by remember {
         mutableStateOf(false)
@@ -183,79 +204,23 @@ fun Queue(
         backgroundColor = backgroundColor,
         modifier = modifier,
         collapsedContent = {
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxSize()
+                    .clickable { state.expandSoft() }
                     .windowInsetsPadding(
                         WindowInsets.systemBars
                             .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
                     )
             ) {
-                IconButton(onClick = { state.expandSoft() }) {
-                    Icon(
-                        painter = painterResource(R.drawable.queue_music),
-                        contentDescription = null
-                    )
-                }
-
-                IconButton(onClick = { showLyrics = !showLyrics }) {
-                    Icon(
-                        painter = painterResource(R.drawable.lyrics),
-                        contentDescription = null,
-                        modifier = Modifier.alpha(if (showLyrics) 1f else 0.5f)
-                    )
-                }
-
-                AnimatedContent(
-                    label = "sleepTimer",
-                    targetState = sleepTimerEnabled
-                ) { sleepTimerEnabled ->
-                    if (sleepTimerEnabled) {
-                        Text(
-                            text = makeTimeString(sleepTimerTimeLeft),
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable(onClick = playerConnection.service.sleepTimer::clear)
-                                .padding(8.dp)
-                        )
-                    } else {
-                        IconButton(onClick = { showSleepTimerDialog = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.bedtime),
-                                contentDescription = null
-                            )
-                        }
-                    }
-                }
-
-                IconButton(onClick = playerConnection::toggleLibrary) {
-                    Icon(
-                        painter = painterResource(if (currentSong?.song?.inLibrary != null) R.drawable.library_add_check else R.drawable.library_add),
-                        contentDescription = null
-                    )
-                }
-
-                IconButton(
-                    onClick = {
-                        menuState.show {
-                            PlayerMenu(
-                                mediaMetadata = mediaMetadata,
-                                navController = navController,
-                                bottomSheetState = playerBottomSheetState,
-                                onShowDetailsDialog = { showDetailsDialog = true },
-                                onDismiss = menuState::dismiss
-                            )
-                        }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.more_horiz),
-                        contentDescription = null
-                    )
-                }
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                )
             }
         }
     ) {
@@ -326,125 +291,153 @@ fun Queue(
             }
         }
 
-        LazyColumn(
-            state = lazyListState,
-            contentPadding = WindowInsets.systemBars
-                .add(
-                    WindowInsets(
-                        top = ListItemHeight,
-                        bottom = ListItemHeight
-                    )
-                )
-                .asPaddingValues(),
-            modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
-        ) {
-            itemsIndexed(
-                items = mutableQueueWindows,
-                key = { _, item -> item.uid.hashCode() }
-            ) { index, window ->
-                ReorderableItem(
-                    state = reorderableState,
-                    key = window.uid.hashCode()
+        when (selectedQueueTab) {
+            0 -> {
+                LazyColumn(
+                    state = lazyListState,
+                    contentPadding = WindowInsets.systemBars
+                        .add(
+                            WindowInsets(
+                                top = ListItemHeight,
+                                bottom = ListItemHeight
+                            )
+                        )
+                        .asPaddingValues(),
+                    modifier = Modifier.nestedScroll(state.preUpPostDownNestedScrollConnection)
                 ) {
-                    val currentItem by rememberUpdatedState(window)
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        positionalThreshold = { totalDistance -> totalDistance },
-                        confirmValueChange = { dismissValue ->
-                            if (dismissValue == SwipeToDismissBoxValue.StartToEnd || dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                                playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
-                            }
-                            true
-                        }
-                    )
+                    itemsIndexed(
+                        items = mutableQueueWindows,
+                        key = { _, item -> item.uid.hashCode() }
+                    ) { index, window ->
+                        ReorderableItem(
+                            state = reorderableState,
+                            key = window.uid.hashCode()
+                        ) {
+                            val currentItem by rememberUpdatedState(window)
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                positionalThreshold = { totalDistance -> totalDistance },
+                                confirmValueChange = { dismissValue ->
+                                    if (dismissValue == SwipeToDismissBoxValue.StartToEnd || dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                        playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                    }
+                                    true
+                                }
+                            )
 
-                    val onCheckedChange: (Boolean) -> Unit = {
-                        if (it) {
-                            selection.add(window.uid.hashCode())
-                        } else {
-                            selection.remove(window.uid.hashCode())
-                        }
-                    }
-
-                    val content = @Composable {
-                        MediaMetadataListItem(
-                            mediaMetadata = window.mediaItem.metadata!!,
-                            isActive = index == currentWindowIndex,
-                            isPlaying = isPlaying,
-                            trailingContent = {
-                                if (inSelectMode) {
-                                    Checkbox(
-                                        checked = window.uid.hashCode() in selection,
-                                        onCheckedChange = onCheckedChange
-                                    )
+                            val onCheckedChange: (Boolean) -> Unit = {
+                                if (it) {
+                                    selection.add(window.uid.hashCode())
                                 } else {
-                                    IconButton(
-                                        onClick = {
-                                            menuState.show {
-                                                MediaMetadataMenu(
-                                                    mediaMetadata = window.mediaItem.metadata!!,
-                                                    navController = navController,
-                                                    bottomSheetState = state,
-                                                    onDismiss = menuState::dismiss,
+                                    selection.remove(window.uid.hashCode())
+                                }
+                            }
+
+                            val content = @Composable {
+                                MediaMetadataListItem(
+                                    mediaMetadata = window.mediaItem.metadata!!,
+                                    isActive = index == currentWindowIndex,
+                                    isPlaying = isPlaying,
+                                    trailingContent = {
+                                        if (inSelectMode) {
+                                            Checkbox(
+                                                checked = window.uid.hashCode() in selection,
+                                                onCheckedChange = onCheckedChange
+                                            )
+                                        } else {
+                                            IconButton(
+                                                onClick = {
+                                                    menuState.show {
+                                                        MediaMetadataMenu(
+                                                            mediaMetadata = window.mediaItem.metadata!!,
+                                                            navController = navController,
+                                                            bottomSheetState = state,
+                                                            onDismiss = menuState::dismiss,
+                                                        )
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.more_vert),
+                                                    contentDescription = null
                                                 )
                                             }
-                                        }
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.more_vert),
-                                            contentDescription = null
-                                        )
-                                    }
 
-                                    if (!lockQueue) {
-                                        IconButton(
-                                            onClick = { },
-                                            modifier = Modifier.draggableHandle()
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.drag_handle),
-                                                contentDescription = null
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .combinedClickable(
-                                    onClick = {
-                                        if (inSelectMode) {
-                                            onCheckedChange(window.uid.hashCode() !in selection)
-                                        } else {
-                                            coroutineScope.launch(Dispatchers.Main) {
-                                                if (index == currentWindowIndex) {
-                                                    playerConnection.player.togglePlayPause()
-                                                } else {
-                                                    playerConnection.player.seekToDefaultPosition(window.firstPeriodIndex)
-                                                    playerConnection.player.playWhenReady = true
+                                            if (!lockQueue) {
+                                                IconButton(
+                                                    onClick = { },
+                                                    modifier = Modifier.draggableHandle()
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.drag_handle),
+                                                        contentDescription = null
+                                                    )
                                                 }
                                             }
                                         }
                                     },
-                                    onLongClick = {
-                                        if (!inSelectMode) {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            inSelectMode = true
-                                            onCheckedChange(true)
-                                        }
-                                    }
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                if (inSelectMode) {
+                                                    onCheckedChange(window.uid.hashCode() !in selection)
+                                                } else {
+                                                    coroutineScope.launch(Dispatchers.Main) {
+                                                        if (index == currentWindowIndex) {
+                                                            playerConnection.player.togglePlayPause()
+                                                        } else {
+                                                            playerConnection.player.seekToDefaultPosition(window.firstPeriodIndex)
+                                                            playerConnection.player.playWhenReady = true
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onLongClick = {
+                                                if (!inSelectMode) {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    inSelectMode = true
+                                                    onCheckedChange(true)
+                                                }
+                                            }
+                                        )
                                 )
-                        )
-                    }
+                            }
 
-                    if (!lockQueue && !inSelectMode) {
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            backgroundContent = {},
-                            content = { content() }
-                        )
-                    } else {
-                        content()
+                            if (!lockQueue && !inSelectMode) {
+                                SwipeToDismissBox(
+                                    state = dismissState,
+                                    backgroundContent = {},
+                                    content = { content() }
+                                )
+                            } else {
+                                content()
+                            }
+                        }
                     }
+                }
+            }
+            1 -> {
+                Lyrics(
+                    sliderPositionProvider = { null },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = ListItemHeight, bottom = ListItemHeight)
+                )
+            }
+            2 -> {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = ListItemHeight, bottom = ListItemHeight)
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = "Related songs and recommendations will appear here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
         }
@@ -490,27 +483,87 @@ fun Queue(
                         }
                     )
                 } else {
-                    Column(
+                    Row(
                         modifier = Modifier
-                            .padding(horizontal = 6.dp)
-                            .weight(1f)
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (!queueTitle.isNullOrEmpty()) {
+                        // UP NEXT Tab
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clickable { selectedQueueTab = 0 }
+                                .padding(vertical = 8.dp)
+                        ) {
                             Text(
-                                text = queueTitle.orEmpty(),
+                                text = "UP NEXT",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                color = if (selectedQueueTab == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (selectedQueueTab == 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .width(32.dp)
+                                        .height(2.dp)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
                         }
 
-                        Text(
-                            text = joinByBullet(pluralStringResource(R.plurals.n_song, queueWindows.size, queueWindows.size), makeTimeString(queueLength * 1000L)),
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        // LYRICS Tab
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clickable {
+                                    selectedQueueTab = 1
+                                    showLyrics = true
+                                }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "LYRICS",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedQueueTab == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (selectedQueueTab == 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .width(32.dp)
+                                        .height(2.dp)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        }
+
+                        // RELATED Tab
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clickable { selectedQueueTab = 2 }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = "RELATED",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selectedQueueTab == 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (selectedQueueTab == 2) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(top = 2.dp)
+                                        .width(32.dp)
+                                        .height(2.dp)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -730,4 +783,360 @@ fun DetailsDialog(
             }
         }
     )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun QueueContent(
+    navController: NavController,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+    val menuState = LocalMenuState.current
+
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val isPlaying by playerConnection.isPlaying.collectAsState()
+    val currentWindowIndex by playerConnection.currentWindowIndex.collectAsState()
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+
+    var showLyrics by rememberPreference(ShowLyricsKey, defaultValue = false)
+    var lockQueue by rememberPreference(LockQueueKey, defaultValue = false)
+    var selectedQueueTab by remember { mutableIntStateOf(0) }
+
+    var inSelectMode by remember { mutableStateOf(false) }
+    val selection = remember { mutableStateListOf<Int>() }
+    val onExitSelectionMode = {
+        inSelectMode = false
+        selection.clear()
+    }
+    if (inSelectMode) {
+        BackHandler(onBack = onExitSelectionMode)
+    }
+
+    val queueWindows by playerConnection.queueWindows.collectAsState()
+    val mutableQueueWindows = remember { mutableStateListOf<Timeline.Window>() }
+
+    val coroutineScope = rememberCoroutineScope()
+    val lazyListState = rememberLazyListState()
+    var dragInfo by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    val reorderableState = rememberReorderableLazyListState(
+        lazyListState = lazyListState,
+        scrollThresholdPadding = WindowInsets.systemBars.add(
+            WindowInsets(top = ListItemHeight, bottom = ListItemHeight)
+        ).asPaddingValues()
+    ) { from, to ->
+        val currentDragInfo = dragInfo
+        dragInfo = if (currentDragInfo == null) {
+            from.index to to.index
+        } else {
+            currentDragInfo.first to to.index
+        }
+        mutableQueueWindows.move(from.index, to.index)
+    }
+
+    LaunchedEffect(reorderableState.isAnyItemDragging) {
+        if (!reorderableState.isAnyItemDragging) {
+            dragInfo?.let { (from, to) ->
+                if (!playerConnection.player.shuffleModeEnabled) {
+                    playerConnection.player.moveMediaItem(from, to)
+                } else {
+                    playerConnection.player.setShuffleOrder(
+                        DefaultShuffleOrder(
+                            queueWindows.map { it.firstPeriodIndex }.toMutableList().move(from, to).toIntArray(),
+                            System.currentTimeMillis()
+                        )
+                    )
+                }
+                dragInfo = null
+            }
+        }
+    }
+
+    LaunchedEffect(queueWindows) {
+        mutableQueueWindows.apply {
+            clear()
+            addAll(queueWindows)
+        }
+        selection.fastForEachReversed { uidHash ->
+            if (queueWindows.find { it.uid.hashCode() == uidHash } == null) {
+                selection.remove(uidHash)
+            }
+        }
+    }
+
+    LaunchedEffect(mutableQueueWindows) {
+        if (currentWindowIndex != -1) {
+            lazyListState.scrollToItem(currentWindowIndex)
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.95f))
+    ) {
+        // Header Tab Navigation: UP NEXT | LYRICS | RELATED
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(ListItemHeight)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // UP NEXT Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { selectedQueueTab = 0 }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "UP NEXT",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selectedQueueTab == 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (selectedQueueTab == 0) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .width(32.dp)
+                                .height(2.dp)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+
+                // LYRICS Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { selectedQueueTab = 1 }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "LYRICS",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selectedQueueTab == 1) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (selectedQueueTab == 1) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .width(32.dp)
+                                .height(2.dp)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+
+                // RELATED Tab
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { selectedQueueTab = 2 }
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "RELATED",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selectedQueueTab == 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (selectedQueueTab == 2) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 2.dp)
+                                .width(32.dp)
+                                .height(2.dp)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Content Body
+        Box(modifier = Modifier.weight(1f)) {
+            when (selectedQueueTab) {
+                0 -> {
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        itemsIndexed(
+                            items = mutableQueueWindows,
+                            key = { _, item -> item.uid.hashCode() }
+                        ) { index, window ->
+                            ReorderableItem(
+                                state = reorderableState,
+                                key = window.uid.hashCode()
+                            ) {
+                                val currentItem by rememberUpdatedState(window)
+                                val dismissState = rememberSwipeToDismissBoxState(
+                                    positionalThreshold = { totalDistance -> totalDistance },
+                                    confirmValueChange = { dismissValue ->
+                                        if (dismissValue == SwipeToDismissBoxValue.StartToEnd || dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                            playerConnection.player.removeMediaItem(currentItem.firstPeriodIndex)
+                                        }
+                                        true
+                                    }
+                                )
+                                val content = @Composable {
+                                    MediaMetadataListItem(
+                                        mediaMetadata = window.mediaItem.metadata!!,
+                                        isActive = index == currentWindowIndex,
+                                        isPlaying = isPlaying,
+                                        trailingContent = {
+                                            if (!lockQueue) {
+                                                IconButton(
+                                                    onClick = { },
+                                                    modifier = Modifier.draggableHandle()
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.drag_handle),
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                if (index == currentWindowIndex) {
+                                                    playerConnection.player.togglePlayPause()
+                                                } else {
+                                                    playerConnection.player.seekToDefaultPosition(window.firstPeriodIndex)
+                                                    playerConnection.player.playWhenReady = true
+                                                }
+                                            }
+                                    )
+                                }
+                                if (!lockQueue) {
+                                    SwipeToDismissBox(
+                                        state = dismissState,
+                                        backgroundContent = {},
+                                        content = { content() }
+                                    )
+                                } else {
+                                    content()
+                                }
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    Lyrics(
+                        sliderPositionProvider = { null },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                2 -> {
+                    RelatedTabContent(navController = navController)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelatedTabContent(
+    navController: NavController,
+) {
+    val playerConnection = LocalPlayerConnection.current ?: return
+    val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
+    var relatedItems by remember(mediaMetadata?.id) { mutableStateOf<List<YTItem>>(emptyList()) }
+    var isLoading by remember(mediaMetadata?.id) { mutableStateOf(true) }
+
+    LaunchedEffect(mediaMetadata?.id) {
+        val songId = mediaMetadata?.id
+        if (songId.isNullOrEmpty()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        isLoading = true
+        withContext(Dispatchers.IO) {
+            val nextResult = YouTube.next(WatchEndpoint(videoId = songId)).getOrNull()
+            val relatedEndpoint = nextResult?.relatedEndpoint
+            if (relatedEndpoint != null) {
+                val page = YouTube.related(relatedEndpoint).getOrNull()
+                if (page != null) {
+                    val combined = mutableListOf<YTItem>()
+                    combined.addAll(page.songs)
+                    combined.addAll(page.artists)
+                    combined.addAll(page.albums)
+                    combined.addAll(page.playlists)
+                    relatedItems = combined
+                }
+            }
+            if (relatedItems.isEmpty()) {
+                val artistName = mediaMetadata?.artists?.firstOrNull()?.name ?: mediaMetadata?.title ?: ""
+                val searchResult = YouTube.search(artistName, YouTube.SearchFilter.FILTER_SONG).getOrNull()
+                if (searchResult != null) {
+                    relatedItems = searchResult.items.filterIsInstance<SongItem>().filter { it.id != songId }
+                }
+            }
+            isLoading = false
+        }
+    }
+
+    if (isLoading) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    } else if (relatedItems.isEmpty()) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text(
+                text = "No related songs found",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+            items(
+                items = relatedItems,
+                key = { it.id }
+            ) { item ->
+                YouTubeListItem(
+                    item = item,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (item is SongItem) {
+                                playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata()))
+                            } else if (item is ArtistItem) {
+                                navController.navigate("artist/${item.id}")
+                            } else if (item is AlbumItem) {
+                                navController.navigate("album/${item.browseId}")
+                            } else if (item is PlaylistItem) {
+                                navController.navigate("online_playlist/${item.id}")
+                            }
+                        }
+                )
+            }
+        }
+    }
 }

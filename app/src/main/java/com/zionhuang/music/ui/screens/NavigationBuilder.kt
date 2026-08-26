@@ -42,6 +42,12 @@ fun NavGraphBuilder.navigationBuilder(
     composable(Screens.Home.route) {
         HomeScreen(navController)
     }
+    composable(Screens.Explore.route) {
+        ExploreScreen(navController, scrollBehavior)
+    }
+    composable(Screens.Library.route) {
+        com.zionhuang.music.ui.screens.library.LibraryScreen(navController)
+    }
     composable(Screens.Songs.route) {
         LibrarySongsScreen(navController)
     }
@@ -65,6 +71,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("account") {
         AccountScreen(navController, scrollBehavior)
+    }
+    composable("login") {
+        LoginScreen(navController)
     }
     composable("new_release") {
         NewReleaseScreen(navController, scrollBehavior)

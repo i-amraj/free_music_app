@@ -40,6 +40,7 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.mp4.FragmentedMp4Extractor
@@ -99,6 +100,7 @@ import com.zionhuang.music.playback.queues.YouTubeQueue
 import com.zionhuang.music.playback.queues.filterExplicit
 import com.zionhuang.music.utils.CoilBitmapLoader
 import com.zionhuang.music.utils.DiscordRPC
+import com.zionhuang.music.utils.NewPipeHelper
 import com.zionhuang.music.utils.dataStore
 import com.zionhuang.music.utils.enumPreference
 import com.zionhuang.music.utils.get
@@ -264,24 +266,25 @@ class MusicService : MediaLibraryService(),
             }
         }
 
-        combine(
-            currentMediaMetadata.distinctUntilChangedBy { it?.id },
-            dataStore.data.map { it[ShowLyricsKey] ?: false }.distinctUntilChanged()
-        ) { mediaMetadata, showLyrics ->
-            mediaMetadata to showLyrics
-        }.collectLatest(scope) { (mediaMetadata, showLyrics) ->
-            if (showLyrics && mediaMetadata != null && database.lyrics(mediaMetadata.id).first() == null) {
-                val lyrics = lyricsHelper.getLyrics(mediaMetadata)
-                database.query {
-                    upsert(
-                        LyricsEntity(
-                            id = mediaMetadata.id,
-                            lyrics = lyrics
-                        )
-                    )
+        currentMediaMetadata
+            .distinctUntilChangedBy { it?.id }
+            .collectLatest(scope) { mediaMetadata ->
+                if (mediaMetadata != null) {
+                    scope.launch(Dispatchers.IO) {
+                        fetchAndStoreLyrics(mediaMetadata)
+                    }
+                    val queueItems = withContext(Dispatchers.Main) { player.mediaItems }
+                    val currentIndex = withContext(Dispatchers.Main) { player.currentMediaItemIndex }
+                    val nextItems = queueItems.drop(currentIndex + 1).take(2)
+                    for (item in nextItems) {
+                        item.metadata?.let { nextMeta ->
+                            scope.launch(Dispatchers.IO) {
+                                fetchAndStoreLyrics(nextMeta)
+                            }
+                        }
+                    }
                 }
             }
-        }
 
         dataStore.data
             .map { it[SkipSilenceKey] ?: false }
@@ -425,6 +428,21 @@ class MusicService : MediaLibraryService(),
                         )
                     }
                     .forEach(::insert)
+            }
+        }
+    }
+
+    private suspend fun fetchAndStoreLyrics(mediaMetadata: com.zionhuang.music.models.MediaMetadata) {
+        val existing = database.lyrics(mediaMetadata.id).first()
+        if (existing == null || existing.lyrics == LyricsEntity.LYRICS_NOT_FOUND) {
+            val lyrics = lyricsHelper.getLyrics(mediaMetadata)
+            database.query {
+                upsert(
+                    LyricsEntity(
+                        id = mediaMetadata.id,
+                        lyrics = lyrics
+                    )
+                )
             }
         }
     }
@@ -633,13 +651,13 @@ class MusicService : MediaLibraryService(),
                 return@Factory dataSpec
             }
 
+            // Reuse a previously resolved (de-throttled) stream URL until it expires
             songUrlCache[mediaId]?.takeIf { it.second > System.currentTimeMillis() }?.let {
                 scope.launch(Dispatchers.IO) { recoverSong(mediaId) }
                 return@Factory dataSpec.withUri(it.first.toUri())
             }
 
             // Check whether format exists so that users from older version can view format details
-            // There may be inconsistent between the downloaded file and the displayed info if user change audio quality frequently
             val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
             val playerResponse = runBlocking(Dispatchers.IO) {
                 YouTube.player(mediaId)
@@ -662,13 +680,10 @@ class MusicService : MediaLibraryService(),
 
             val format =
                 if (playedFormat != null) {
-                    playerResponse.streamingData?.adaptiveFormats?.find {
-                        // Use itag to identify previously played format
-                        it.itag == playedFormat.itag
-                    }
+                    playerResponse.streamingData?.adaptiveFormats?.find { it.itag == playedFormat.itag }
                 } else {
                     playerResponse.streamingData?.adaptiveFormats
-                        ?.filter { it.isAudio }
+                        ?.filter { it.isAudio && !it.url.isNullOrEmpty() }
                         ?.maxByOrNull {
                             it.bitrate * when (audioQuality) {
                                 AudioQuality.AUTO -> if (connectivityManager.isActiveNetworkMetered) -1 else 1
@@ -677,6 +692,8 @@ class MusicService : MediaLibraryService(),
                             } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
                         }
                 } ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
+            
+            android.util.Log.d("MusicService", "Resolving stream for $mediaId (itag ${format.itag})")
 
             database.query {
                 upsert(
@@ -684,7 +701,7 @@ class MusicService : MediaLibraryService(),
                         id = mediaId,
                         itag = format.itag,
                         mimeType = format.mimeType.split(";")[0],
-                        codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
+                        codecs = if (format.mimeType.contains("codecs=")) format.mimeType.split("codecs=")[1].removeSurrounding("\"") else "",
                         bitrate = format.bitrate,
                         sampleRate = format.audioSampleRate,
                         contentLength = format.contentLength ?: 5000000L,
@@ -694,18 +711,23 @@ class MusicService : MediaLibraryService(),
             }
             scope.launch(Dispatchers.IO) { recoverSong(mediaId, playerResponse) }
 
+            // Resolve an un-throttled stream URL via NewPipe (it deciphers the `n`
+            // parameter that otherwise causes HTTP 403 on ranges beyond ~1 MB).
+            // Fall back to the InnerTube URL if NewPipe can't resolve one.
+            val streamUrl = runBlocking(Dispatchers.IO) { NewPipeHelper.getAudioStreamUrl(mediaId) }
+                ?: format.url
+                ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
+
             val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
-            songUrlCache[mediaId] = format.url!! to (System.currentTimeMillis() + expiresInMs)
-            dataSpec.withUri(format.url!!.toUri())
+            songUrlCache[mediaId] = streamUrl to (System.currentTimeMillis() + expiresInMs)
+            dataSpec.withUri(streamUrl.toUri())
         }
     }
 
     private fun createMediaSourceFactory() =
         DefaultMediaSourceFactory(
             createDataSourceFactory(),
-            ExtractorsFactory {
-                arrayOf(MatroskaExtractor(), FragmentedMp4Extractor())
-            }
+            DefaultExtractorsFactory()
         )
 
     private fun createRenderersFactory() =

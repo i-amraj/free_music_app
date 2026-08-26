@@ -31,6 +31,12 @@ import javax.inject.Inject
 import com.zionhuang.music.utils.Updater
 import com.zionhuang.music.BuildConfig
 
+import com.zionhuang.innertube.pages.MoodAndGenres
+import com.zionhuang.innertube.pages.SearchSummary
+import com.zionhuang.innertube.pages.SearchSummaryPage
+
+import com.zionhuang.innertube.models.SongItem
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext val context: Context,
@@ -38,6 +44,13 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
     val isRefreshing = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
+
+    val selectedCategory = MutableStateFlow<String?>(null)
+    val categorySummaryPage = MutableStateFlow<SearchSummaryPage?>(null)
+    val isCategoryLoading = MutableStateFlow(false)
+
+    val defaultQuickPicks = MutableStateFlow<List<SongItem>>(emptyList())
+    val categoryQuickPicks = MutableStateFlow<List<SongItem>>(emptyList())
 
     val quickPicks = MutableStateFlow<List<Song>?>(null)
     val forgottenFavorites = MutableStateFlow<List<Song>?>(null)
@@ -61,6 +74,12 @@ class HomeViewModel @Inject constructor(
 
         quickPicks.value = database.quickPicks()
             .first().shuffled().take(20)
+
+        if (quickPicks.value.isNullOrEmpty()) {
+            YouTube.search("Trending Songs", YouTube.SearchFilter.FILTER_SONG).onSuccess { result ->
+                defaultQuickPicks.value = result.items.filterIsInstance<SongItem>().filterExplicit(hideExplicit)
+            }
+        }
 
         forgottenFavorites.value = database.forgottenFavorites()
             .first().shuffled().take(20)
@@ -170,7 +189,72 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun selectCategory(category: String?) {
+        if (selectedCategory.value == category) {
+            selectedCategory.value = null
+            categorySummaryPage.value = null
+            categoryQuickPicks.value = emptyList()
+            return
+        }
+        selectedCategory.value = category
+        if (category == null) {
+            categorySummaryPage.value = null
+            categoryQuickPicks.value = emptyList()
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            isCategoryLoading.value = true
+            categorySummaryPage.value = null
+
+            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+
+            YouTube.search("$category Songs", YouTube.SearchFilter.FILTER_SONG).onSuccess { result ->
+                categoryQuickPicks.value = result.items.filterIsInstance<SongItem>().filterExplicit(hideExplicit)
+            }
+            val matched = explorePage.value?.moodAndGenres?.let { list ->
+                var found: MoodAndGenres.Item? = null
+                list.forEach { group ->
+                    (group.component2() as? List<MoodAndGenres.Item>)?.forEach { item ->
+                        if (item.title.equals(category, ignoreCase = true)) {
+                            found = item
+                        }
+                    }
+                }
+                found
+            }
+
+            if (matched != null) {
+                YouTube.browse(matched.endpoint.browseId, matched.endpoint.params).onSuccess { browseResult ->
+                    val summaries = browseResult.items.mapNotNull { item ->
+                        item.title?.let { title ->
+                            SearchSummary(
+                                title = title,
+                                items = item.items.filterExplicit(hideExplicit)
+                            )
+                        }
+                    }
+                    categorySummaryPage.value = SearchSummaryPage(summaries)
+                }.onFailure {
+                    YouTube.searchSummary(category).onSuccess { page ->
+                        categorySummaryPage.value = page.filterExplicit(hideExplicit)
+                    }
+                }
+            } else {
+                YouTube.searchSummary(category).onSuccess { page ->
+                    categorySummaryPage.value = page.filterExplicit(hideExplicit)
+                }
+            }
+            isCategoryLoading.value = false
+        }
+    }
+
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val hideExplicit = context.dataStore.get(HideExplicitKey, false)
+            YouTube.search("Trending Songs", YouTube.SearchFilter.FILTER_SONG).onSuccess { result ->
+                defaultQuickPicks.value = result.items.filterIsInstance<SongItem>().filterExplicit(hideExplicit)
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             load()
         }

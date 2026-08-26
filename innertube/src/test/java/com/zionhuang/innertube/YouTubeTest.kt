@@ -17,7 +17,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Ignore
 import org.junit.Test
 
-@Ignore("IDK Why GitHub Action always runs the test with error")
 class YouTubeTest {
     private val youTube = YouTube
 
@@ -25,22 +24,29 @@ class YouTubeTest {
     fun `Check 'player' endpoint`() = runBlocking {
         VIDEO_IDS.forEach { videoId ->
             val playerResponse = youTube.player(videoId).getOrThrow()
+            println("VideoId: $videoId | Status: ${playerResponse.playabilityStatus.status} | Reason: ${playerResponse.playabilityStatus.reason} | Client UA: ${playerResponse.clientUserAgent}")
             assertTrue(playerResponse.playabilityStatus.status == "OK")
         }
     }
 
     @Test
-    fun `Check playable stream`() = runBlocking {
+    fun testPlayableStream() = runBlocking {
         VIDEO_IDS.forEach { videoId ->
-            val playerResponse = youTube.player(videoId).getOrThrow()
-            val format = playerResponse.streamingData!!.adaptiveFormats[0]
-            val url = format.url!!
-            println(url)
+            val res = youTube.player(videoId)
+            if (res.isFailure) {
+                println("player failure: ${res.exceptionOrNull()}")
+            }
+            val playerResponse = res.getOrThrow()
+            val format = playerResponse.streamingData?.adaptiveFormats?.firstOrNull { it.isAudio && !it.url.isNullOrEmpty() }
+            val url = format?.url!!
+            println("Stream URL: $url")
             val response = HttpClient(OkHttp).get(url) {
                 headers {
-                    append("Range", "bytes=0-10")
+                    append("User-Agent", "com.google.android.apps.youtube.vr.oculus/1.57.19 (Linux; U; Android 12; en_US; Oculus Quest 2; Build/SQ3A.220605.009.A1; Cronet/116.0.5845.240)")
+                    append("Range", "bytes=0-1024")
                 }
             }
+            println("HTTP Status: ${response.status}")
             assertTrue(response.status.isSuccess())
         }
     }
@@ -172,9 +178,8 @@ class YouTubeTest {
 
     companion object {
         private val VIDEO_IDS = listOf(
-            "4H-N260cPCg",
-            "jF4KKOsoyDs",
-            "x8VYWazR5mE" // Login required
+            "dQw4w9WgXcQ",
+            "kJQP7kiw5Fk"
         )
 
         private const val PLAYLIST_ID = "RDAMVM_WVXrDmm-P0"

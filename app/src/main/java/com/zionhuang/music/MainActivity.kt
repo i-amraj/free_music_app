@@ -393,6 +393,8 @@ class MainActivity : ComponentActivity() {
                     }
                     val topLevelScreens = listOf(
                         Screens.Home.route,
+                        Screens.Explore.route,
+                        Screens.Library.route,
                         Screens.Songs.route,
                         Screens.Artists.route,
                         Screens.Albums.route,
@@ -842,6 +844,8 @@ class MainActivity : ComponentActivity() {
                         )
 
                         NavigationBar(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            tonalElevation = 8.dp,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .offset {
@@ -858,8 +862,16 @@ class MainActivity : ComponentActivity() {
                                 }
                         ) {
                             navigationItems.fastForEach { screen ->
+                                val selected = navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true
                                 NavigationBarItem(
-                                    selected = navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true,
+                                    selected = selected,
+                                    colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer
+                                    ),
                                     icon = {
                                         Icon(
                                             painter = painterResource(screen.iconId),
@@ -874,7 +886,7 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onClick = {
-                                        if (navBackStackEntry?.destination?.hierarchy?.any { it.route == screen.route } == true) {
+                                        if (selected) {
                                             navBackStackEntry?.savedStateHandle?.set("scrollToTop", true)
                                             coroutineScope.launch {
                                                 searchBarScrollBehavior.state.resetHeightOffset()

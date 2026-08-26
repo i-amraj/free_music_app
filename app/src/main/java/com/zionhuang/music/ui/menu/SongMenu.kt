@@ -287,7 +287,7 @@ fun SongMenu(
             val intent = Intent().apply {
                 action = Intent.ACTION_SEND
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=${song.id}")
+                putExtra(Intent.EXTRA_TEXT, "Listen to ${song.song.title} on Raj Music: https://iamraj.me/projects/raj-music.html")
             }
             context.startActivity(Intent.createChooser(intent, null))
         }

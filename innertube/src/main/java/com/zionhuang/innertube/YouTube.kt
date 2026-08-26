@@ -15,10 +15,12 @@ import com.zionhuang.innertube.models.WatchEndpoint
 import com.zionhuang.innertube.models.WatchEndpoint.WatchEndpointMusicSupportedConfigs.WatchEndpointMusicConfig.Companion.MUSIC_VIDEO_TYPE_ATV
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_MUSIC
+import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_TESTSUITE
 import com.zionhuang.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
 import com.zionhuang.innertube.models.YouTubeClient.Companion.IOS
 import com.zionhuang.innertube.models.YouTubeClient.Companion.TVHTML5
 import com.zionhuang.innertube.models.YouTubeClient.Companion.WEB
+import com.zionhuang.innertube.models.YouTubeClient.Companion.WEB_EMBEDDED_PLAYER
 import com.zionhuang.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.zionhuang.innertube.models.YouTubeLocale
 import com.zionhuang.innertube.models.getContinuation
@@ -458,86 +460,35 @@ object YouTube {
                    formats?.any { it.isAudio && !it.url.isNullOrEmpty() } == true
         }
 
-        // 1. Try IOS client first (most reliable stream resolution)
-        var playerResponse = processPlayerResponse(innerTube.player(IOS, videoId, playlistId).body<PlayerResponse>())
-        if (isValidPlayerResponse(playerResponse)) {
-            return@runCatching playerResponse
-        }
+        val clients = listOf(ANDROID_VR_NO_AUTH, IOS, ANDROID_TESTSUITE, TVHTML5, ANDROID, WEB_REMIX)
+        var lastResponse: PlayerResponse? = null
 
-        // 2. Try ANDROID client
-        playerResponse = processPlayerResponse(innerTube.player(ANDROID, videoId, playlistId).body<PlayerResponse>())
-        if (isValidPlayerResponse(playerResponse)) {
-            return@runCatching playerResponse
-        }
-
-        // 3. Try ANDROID_VR_NO_AUTH
-        playerResponse = processPlayerResponse(innerTube.player(ANDROID_VR_NO_AUTH, videoId, playlistId).body<PlayerResponse>())
-        if (isValidPlayerResponse(playerResponse)) {
-            return@runCatching playerResponse
-        }
-
-        // 4. Try WEB_REMIX
-        playerResponse = processPlayerResponse(innerTube.player(WEB_REMIX, videoId, playlistId).body<PlayerResponse>())
-        if (isValidPlayerResponse(playerResponse)) {
-            return@runCatching playerResponse
-        }
-
-        // 5. Try ANDROID_MUSIC if logged in
-        if (this.cookie != null) {
-            playerResponse = processPlayerResponse(innerTube.player(ANDROID_MUSIC, videoId, playlistId).body<PlayerResponse>())
-            if (isValidPlayerResponse(playerResponse)) {
-                return@runCatching playerResponse
-            }
-        }
-
-        // 6. Try TVHTML5
-        val tvResponse = processPlayerResponse(innerTube.player(TVHTML5, videoId, playlistId).body<PlayerResponse>())
-        if (isValidPlayerResponse(tvResponse)) {
-            return@runCatching tvResponse
-        }
-
-        // Fallback: Try Piped API if YouTube clients fail to return valid audio stream URLs
-        runCatching {
-            val pipedHttpResponse = innerTube.pipedStreams(videoId)
-            val pipedResponse = pipedHttpResponse.body<PipedResponse>()
-            if (pipedResponse.audioStreams.isNotEmpty()) {
-                val formats = pipedResponse.audioStreams.map { stream ->
-                    PlayerResponse.StreamingData.Format(
-                        itag = stream.itag,
-                        url = stream.url,
-                        mimeType = "audio/webm; codecs=\"opus\"",
-                        bitrate = stream.bitrate,
-                        width = null,
-                        height = null,
-                        contentLength = 5000000L,
-                        quality = "MEDIUM",
-                        fps = null,
-                        qualityLabel = null,
-                        averageBitrate = stream.bitrate,
-                        audioQuality = "AUDIO_QUALITY_MEDIUM",
-                        approxDurationMs = null,
-                        audioSampleRate = 48000,
-                        audioChannels = 2,
-                        loudnessDb = null,
-                        lastModified = System.currentTimeMillis()
-                    )
+        for (client in clients) {
+            try {
+                val resp = processPlayerResponse(innerTube.player(client, videoId, playlistId).body<PlayerResponse>())
+                resp.clientUserAgent = client.userAgent
+                println("YouTubePlayer: Client ${client.clientName} returned status: ${resp.playabilityStatus.status}, valid=${isValidPlayerResponse(resp)}")
+                if (isValidPlayerResponse(resp)) {
+                    return@runCatching resp
                 }
-                return@runCatching PlayerResponse(
-                    responseContext = ResponseContext(visitorData = null, serviceTrackingParams = null),
-                    playabilityStatus = PlayerResponse.PlayabilityStatus(status = "OK", reason = null),
-                    playerConfig = null,
-                    streamingData = PlayerResponse.StreamingData(
-                        formats = formats,
-                        adaptiveFormats = formats,
-                        expiresInSeconds = 21600
-                    ),
-                    videoDetails = playerResponse.videoDetails
-                )
+                lastResponse = resp
+            } catch (e: Exception) {
+                println("YouTubePlayer: Client ${client.clientName} threw exception: ${e.message}")
             }
         }
-        
-        // Return the last response even if not OK
-        playerResponse
+
+        if (this.cookie != null) {
+            try {
+                val resp = processPlayerResponse(innerTube.player(ANDROID_MUSIC, videoId, playlistId).body<PlayerResponse>())
+                resp.clientUserAgent = ANDROID_MUSIC.userAgent
+                if (isValidPlayerResponse(resp)) {
+                    return@runCatching resp
+                }
+                lastResponse = resp
+            } catch (_: Exception) { }
+        }
+
+        lastResponse ?: throw Exception("All clients failed to retrieve player response")
     }
 
     suspend fun next(endpoint: WatchEndpoint, continuation: String? = null): Result<NextResult> = runCatching {

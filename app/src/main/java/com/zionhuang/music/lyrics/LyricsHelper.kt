@@ -7,11 +7,14 @@ import com.zionhuang.music.models.MediaMetadata
 import com.zionhuang.music.utils.reportException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 class LyricsHelper @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
-    private val lyricsProviders = listOf(YouTubeSubtitleLyricsProvider, LrcLibLyricsProvider, KuGouLyricsProvider, YouTubeLyricsProvider)
+    private val lyricsProviders = listOf(LrcLibLyricsProvider, KuGouLyricsProvider, YouTubeSubtitleLyricsProvider, YouTubeLyricsProvider)
     private val cache = LruCache<String, List<LyricsResult>>(MAX_CACHE_SIZE)
 
     suspend fun getLyrics(mediaMetadata: MediaMetadata): String {
@@ -19,21 +22,32 @@ class LyricsHelper @Inject constructor(
         if (cached != null) {
             return cached.lyrics
         }
-        lyricsProviders.forEach { provider ->
-            if (provider.isEnabled(context)) {
-                provider.getLyrics(
-                    mediaMetadata.id,
-                    mediaMetadata.title,
-                    mediaMetadata.artists.joinToString { it.name },
-                    mediaMetadata.duration
-                ).onSuccess { lyrics ->
-                    return lyrics
-                }.onFailure {
-                    reportException(it)
+        return coroutineScope {
+            val enabledProviders = lyricsProviders.filter { it.isEnabled(context) }
+            val deferred = CompletableDeferred<String>()
+            val jobs = enabledProviders.map { provider ->
+                launch {
+                    val result = provider.getLyrics(
+                        mediaMetadata.id,
+                        mediaMetadata.title,
+                        mediaMetadata.artists.joinToString { it.name },
+                        mediaMetadata.duration
+                    ).getOrNull()
+                    if (!result.isNullOrBlank() && result != LYRICS_NOT_FOUND) {
+                        deferred.complete(result)
+                    }
                 }
             }
+            launch {
+                jobs.forEach { it.join() }
+                if (!deferred.isCompleted) {
+                    deferred.complete(LYRICS_NOT_FOUND)
+                }
+            }
+            val lyrics = deferred.await()
+            jobs.forEach { it.cancel() }
+            lyrics
         }
-        return LYRICS_NOT_FOUND
     }
 
     suspend fun getAllLyrics(

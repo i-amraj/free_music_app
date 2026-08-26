@@ -88,3 +88,7 @@ lint/tmp/
 
 .kotlin
 output-metadata.json
+*.deb
+scratch/
+emulator_screen_redesign.png
+yt_mucis_ss/

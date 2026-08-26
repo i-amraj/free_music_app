@@ -15,6 +15,8 @@ data class PlayerResponse(
     val streamingData: StreamingData?,
     val videoDetails: VideoDetails?,
 ) {
+    @kotlinx.serialization.Transient
+    var clientUserAgent: String? = null
     @Serializable
     data class PlayabilityStatus(
         val status: String,

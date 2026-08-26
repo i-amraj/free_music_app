@@ -25,8 +25,8 @@ android {
         applicationId = "com.zionhuang.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 27
-        versionName = "0.5.11"
+        versionCode = 28
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -167,5 +167,11 @@ dependencies {
     "fullImplementation"(libs.mlkit.translate)
     "fullImplementation"(libs.opencc4j)
 
+    // Lyrics translation/transliteration also enabled in foss (offline, no Firebase needed)
+    "fossImplementation"(libs.mlkit.language.id)
+    "fossImplementation"(libs.mlkit.translate)
+    "fossImplementation"(libs.coroutines.play.services)
+
     implementation(libs.timber)
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:master-SNAPSHOT")
 }

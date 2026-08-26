@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -49,8 +51,9 @@ import androidx.compose.ui.unit.sp
 import com.zionhuang.music.BuildConfig
 import com.zionhuang.music.LocalPlayerConnection
 import com.zionhuang.music.R
+import com.zionhuang.music.constants.LyricsLanguage
+import com.zionhuang.music.constants.LyricsLanguageKey
 import com.zionhuang.music.constants.PlayerTextAlignmentKey
-import com.zionhuang.music.constants.TranslateLyricsKey
 import com.zionhuang.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
 import com.zionhuang.music.lyrics.LyricsEntry
 import com.zionhuang.music.lyrics.LyricsEntry.Companion.HEAD_LYRICS_ENTRY
@@ -77,7 +80,8 @@ fun Lyrics(
     val density = LocalDensity.current
 
     val playerTextAlignment by rememberEnumPreference(PlayerTextAlignmentKey, PlayerTextAlignment.CENTER)
-    var translationEnabled by rememberPreference(TranslateLyricsKey, false)
+    var lyricsLanguage by rememberEnumPreference(LyricsLanguageKey, LyricsLanguage.ORIGINAL)
+    var showLanguageMenu by rememberSaveable { mutableStateOf(false) }
 
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val translating by playerConnection.translating.collectAsState()
@@ -87,13 +91,23 @@ fun Lyrics(
         else lyricsEntity?.lyrics
     }
 
-    val lines = remember(lyrics) {
-        if (lyrics == null || lyrics == LYRICS_NOT_FOUND) emptyList()
-        else if (lyrics.startsWith("[")) listOf(HEAD_LYRICS_ENTRY) + parseLyrics(lyrics)
-        else lyrics.lines().mapIndexed { index, line -> LyricsEntry(index * 100L, line) }
+    val songDuration = remember(mediaMetadata) {
+        val durationInSec = mediaMetadata?.duration ?: -1
+        if (durationInSec > 0) durationInSec * 1000L else 180_000L
     }
-    val isSynced = remember(lyrics) {
-        !lyrics.isNullOrEmpty() && lyrics.startsWith("[")
+
+    val lines = remember(lyrics, songDuration) {
+        if (lyrics == null || lyrics == LYRICS_NOT_FOUND) emptyList()
+        else if (lyrics.contains("[")) {
+            val parsed = parseLyrics(lyrics)
+            if (parsed.isNotEmpty()) listOf(HEAD_LYRICS_ENTRY) + parsed
+            else createProportionalLines(lyrics, songDuration)
+        } else {
+            createProportionalLines(lyrics, songDuration)
+        }
+    }
+    val isSynced = remember(lines) {
+        lines.isNotEmpty()
     }
 
     var currentLineIndex by remember {
@@ -112,8 +126,8 @@ fun Lyrics(
         mutableStateOf(false)
     }
 
-    LaunchedEffect(lyrics) {
-        if (lyrics.isNullOrEmpty() || !lyrics.startsWith("[")) {
+    LaunchedEffect(lyrics, lines) {
+        if (lines.isEmpty()) {
             currentLineIndex = -1
             return@LaunchedEffect
         }
@@ -121,7 +135,8 @@ fun Lyrics(
             delay(50)
             val sliderPosition = sliderPositionProvider()
             isSeeking = sliderPosition != null
-            currentLineIndex = findCurrentLineIndex(lines, sliderPosition ?: playerConnection.player.currentPosition)
+            val currentPos = sliderPosition ?: playerConnection.player.currentPosition
+            currentLineIndex = findCurrentLineIndex(lines, currentPos)
         }
     }
 
@@ -137,8 +152,8 @@ fun Lyrics(
     val lazyListState = rememberLazyListState()
 
     LaunchedEffect(currentLineIndex, lastPreviewTime) {
-        if (!isSynced) return@LaunchedEffect
-        if (currentLineIndex != -1) {
+        if (!isSynced || lines.isEmpty()) return@LaunchedEffect
+        if (currentLineIndex in lines.indices) {
             deferredCurrentLineIndex = currentLineIndex
             if (lastPreviewTime == 0L) {
                 if (isSeeking) {
@@ -247,17 +262,36 @@ fun Lyrics(
                     .align(Alignment.BottomEnd)
                     .padding(end = 12.dp)
             ) {
-                if (BuildConfig.FLAVOR != "foss") {
+                Box {
                     IconButton(
-                        onClick = {
-                            translationEnabled = !translationEnabled
-                        }
+                        onClick = { showLanguageMenu = true }
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.translate),
                             contentDescription = null,
-                            tint = LocalContentColor.current.copy(alpha = if (translationEnabled) 1f else 0.3f)
+                            tint = LocalContentColor.current.copy(
+                                alpha = if (lyricsLanguage != LyricsLanguage.ORIGINAL) 1f else 0.3f
+                            )
                         )
+                    }
+                    DropdownMenu(
+                        expanded = showLanguageMenu,
+                        onDismissRequest = { showLanguageMenu = false }
+                    ) {
+                        LyricsLanguage.entries.forEach { language ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = language.displayName,
+                                        fontWeight = if (language == lyricsLanguage) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    lyricsLanguage = language
+                                    showLanguageMenu = false
+                                }
+                            )
+                        }
                     }
                 }
 
@@ -284,3 +318,12 @@ fun Lyrics(
 
 const val animateScrollDuration = 300L
 val LyricsPreviewTime = 4.seconds
+
+private fun createProportionalLines(lyrics: String, durationMs: Long): List<LyricsEntry> {
+    val rawLines = lyrics.lines().filter { it.isNotBlank() }
+    if (rawLines.isEmpty()) return emptyList()
+    val step = durationMs.toFloat() / rawLines.size
+    return listOf(HEAD_LYRICS_ENTRY) + rawLines.mapIndexed { index, text ->
+        LyricsEntry((index * step).toLong(), text)
+    }
+}

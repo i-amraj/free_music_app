@@ -1,6 +1,7 @@
 package com.zionhuang.music.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,12 +38,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import com.zionhuang.music.ui.component.YTMusicBannerCard
+import com.zionhuang.music.ui.component.YTMusicCategoryChips
+import com.zionhuang.music.ui.component.YTMusicHomeHeader
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -85,7 +91,9 @@ import com.zionhuang.music.ui.component.NavigationTitle
 import com.zionhuang.music.ui.component.SongGridItem
 import com.zionhuang.music.ui.component.SongListItem
 import com.zionhuang.music.ui.component.YouTubeGridItem
+import com.zionhuang.music.ui.component.YouTubeListItem
 import com.zionhuang.music.ui.component.shimmer.GridItemPlaceHolder
+import com.zionhuang.music.ui.component.shimmer.ListItemPlaceHolder
 import com.zionhuang.music.ui.component.shimmer.ShimmerHost
 import com.zionhuang.music.ui.component.shimmer.TextPlaceholder
 import com.zionhuang.music.ui.menu.AlbumMenu
@@ -142,6 +150,12 @@ fun HomeScreen(
     val isLoggedIn = remember(innerTubeCookie) {
         "SAPISID" in parseCookieString(innerTubeCookie)
     }
+
+    val selectedCategory by viewModel.selectedCategory.collectAsState()
+    val categorySummaryPage by viewModel.categorySummaryPage.collectAsState()
+    val isCategoryLoading by viewModel.isCategoryLoading.collectAsState()
+    val defaultQuickPicks by viewModel.defaultQuickPicks.collectAsState()
+    val categoryQuickPicks by viewModel.categoryQuickPicks.collectAsState()
 
     val scope = rememberCoroutineScope()
     val lazylistState = rememberLazyListState()
@@ -360,52 +374,125 @@ fun HomeScreen(
             contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues()
         ) {
             item {
-                Row(
-                    modifier = Modifier
-                        .windowInsetsPadding(WindowInsets.systemBars.only(WindowInsetsSides.Horizontal))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                        .fillMaxWidth()
-                        .animateItem()
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.animateItem()
                 ) {
-                    if (isLoggedIn) {
-                        NavigationTile(
-                            title = stringResource(R.string.account),
-                            icon = R.drawable.person,
-                            onClick = {
-                                navController.navigate("account")
-                            },
-                            modifier = Modifier.weight(1f)
+                    YTMusicHomeHeader(
+                        onAccountClick = { navController.navigate("account") },
+                        onHistoryClick = { navController.navigate("history") }
+                    )
+                    YTMusicCategoryChips(
+                        selectedCategory = selectedCategory,
+                        onCategorySelected = { category ->
+                            viewModel.selectCategory(category)
+                        }
+                    )
+                    YTMusicBannerCard(
+                        title = "Keep listening to ad-free music",
+                        subtitle = "Raj Music Premium Experience",
+                        onClick = { navController.navigate("mood_and_genres") }
+                    )
+                }
+            }
+
+            if (selectedCategory != null) {
+                if (isCategoryLoading) {
+                    item {
+                        ShimmerHost {
+                            repeat(4) {
+                                ListItemPlaceHolder()
+                            }
+                        }
+                    }
+                }
+                categorySummaryPage?.summaries?.forEach { summary ->
+                    item {
+                        NavigationTitle(
+                            title = summary.title,
+                            modifier = Modifier.animateItem()
                         )
+                    }
+                    item {
+                        LazyRow(
+                            contentPadding = WindowInsets.systemBars
+                                .only(WindowInsetsSides.Horizontal)
+                                .asPaddingValues(),
+                            modifier = Modifier.animateItem()
+                        ) {
+                            items(
+                                items = summary.items,
+                                key = { it.id }
+                            ) { item ->
+                                YouTubeGridItem(
+                                    item = item,
+                                    fillMaxWidth = false,
+                                    modifier = Modifier
+                                        .combinedClickable(
+                                            onClick = {
+                                                when (item) {
+                                                    is SongItem -> playerConnection.playQueue(YouTubeQueue.radio(item.toMediaMetadata()))
+                                                    is AlbumItem -> navController.navigate("album/${item.id}")
+                                                    is ArtistItem -> navController.navigate("artist/${item.id}")
+                                                    is PlaylistItem -> navController.navigate("online_playlist/${item.id}")
+                                                }
+                                            }
+                                        )
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            quickPicks?.takeIf { it.isNotEmpty() }?.let { quickPicks ->
-                item {
-                    NavigationTitle(
-                        title = stringResource(R.string.quick_picks),
-                        modifier = Modifier.animateItem()
-                    )
-                }
+            item {
+                NavigationTitle(
+                    title = selectedCategory?.let { "$it Quick Picks" } ?: stringResource(R.string.quick_picks),
+                    modifier = Modifier.animateItem()
+                )
+            }
 
-                item {
-                    LazyHorizontalGrid(
-                        state = quickPicksLazyGridState,
-                        rows = GridCells.Fixed(4),
-                        flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
-                        contentPadding = WindowInsets.systemBars
-                            .only(WindowInsetsSides.Horizontal)
-                            .asPaddingValues(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(ListItemHeight * 4)
-                            .animateItem()
-                    ) {
+            item {
+                val hasCategorySongs = selectedCategory != null && categoryQuickPicks.isNotEmpty()
+                val hasLocalSongs = quickPicks?.isNotEmpty() == true
+                val hasDefaultSongs = defaultQuickPicks.isNotEmpty()
+
+                LazyHorizontalGrid(
+                    state = quickPicksLazyGridState,
+                    rows = GridCells.Fixed(4),
+                    flingBehavior = rememberSnapFlingBehavior(quickPicksSnapLayoutInfoProvider),
+                    contentPadding = WindowInsets.systemBars
+                        .only(WindowInsetsSides.Horizontal)
+                        .asPaddingValues(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ListItemHeight * 4)
+                        .animateItem()
+                ) {
+                    if (hasCategorySongs) {
                         items(
-                            items = quickPicks,
+                            items = categoryQuickPicks,
+                            key = { it.id }
+                        ) { songItem ->
+                            YouTubeListItem(
+                                item = songItem,
+                                isActive = songItem.id == mediaMetadata?.id,
+                                isPlaying = isPlaying,
+                                modifier = Modifier
+                                    .width(horizontalLazyGridItemWidth)
+                                    .clickable {
+                                        if (songItem.id == mediaMetadata?.id) {
+                                            playerConnection.player.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(YouTubeQueue.radio(songItem.toMediaMetadata()))
+                                        }
+                                    }
+                            )
+                        }
+                    } else if (hasLocalSongs) {
+                        items(
+                            items = quickPicks!!,
                             key = { it.id }
                         ) { originalSong ->
-                            // fetch song from database to keep updated
                             val song by database.song(originalSong.id).collectAsState(initial = originalSong)
 
                             SongListItem(
@@ -434,6 +521,32 @@ fun HomeScreen(
                                             }
                                         }
                                     )
+                            )
+                        }
+                    } else if (hasDefaultSongs) {
+                        items(
+                            items = defaultQuickPicks,
+                            key = { it.id }
+                        ) { songItem ->
+                            YouTubeListItem(
+                                item = songItem,
+                                isActive = songItem.id == mediaMetadata?.id,
+                                isPlaying = isPlaying,
+                                modifier = Modifier
+                                    .width(horizontalLazyGridItemWidth)
+                                    .clickable {
+                                        if (songItem.id == mediaMetadata?.id) {
+                                            playerConnection.player.togglePlayPause()
+                                        } else {
+                                            playerConnection.playQueue(YouTubeQueue.radio(songItem.toMediaMetadata()))
+                                        }
+                                    }
+                            )
+                        }
+                    } else {
+                        items(20) {
+                            ListItemPlaceHolder(
+                                modifier = Modifier.width(horizontalLazyGridItemWidth)
                             )
                         }
                     }
@@ -496,34 +609,6 @@ fun HomeScreen(
                                         }
                                     )
                             )
-                        }
-                    }
-                }
-            }
-
-            keepListening?.takeIf { it.isNotEmpty() }?.let { keepListening ->
-                item {
-                    NavigationTitle(
-                        title = stringResource(R.string.keep_listening),
-                        modifier = Modifier.animateItem()
-                    )
-                }
-
-                item {
-                    val rows = if (keepListening.size > 6) 2 else 1
-                    LazyHorizontalGrid(
-                        state = rememberLazyGridState(),
-                        rows = GridCells.Fixed(rows),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height((GridThumbnailHeight + 24.dp + with(LocalDensity.current) {
-                                MaterialTheme.typography.bodyLarge.lineHeight.toDp() * 2 +
-                                        MaterialTheme.typography.bodyMedium.lineHeight.toDp() * 2
-                            }) * rows)
-                            .animateItem()
-                    ) {
-                        items(keepListening) {
-                            localGridItem(it)
                         }
                     }
                 }
@@ -755,13 +840,6 @@ fun HomeScreen(
                 }
             }
         }
-
-        HideOnScrollFAB(
-            visible = true,
-            lazyListState = lazylistState,
-            icon = R.drawable.history,
-            onClick = { navController.navigate("history") }
-        )
 
         Indicator(
             isRefreshing = isRefreshing,

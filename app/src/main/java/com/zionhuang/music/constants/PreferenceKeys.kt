@@ -128,6 +128,15 @@ enum class AlbumFilter {
 
 val ShowLyricsKey = booleanPreferencesKey("showLyrics")
 val TranslateLyricsKey = booleanPreferencesKey("translateLyrics")
+val LyricsLanguageKey = stringPreferencesKey("lyricsLanguage")
+
+enum class LyricsLanguage(val displayName: String) {
+    ORIGINAL("Original"),
+    HINGLISH("Hinglish"),
+    ENGLISH("English"),
+    HINDI("हिन्दी"),
+    URDU("اردو"),
+}
 val LockQueueKey = booleanPreferencesKey("lockQueue")
 
 val PlayerVolumeKey = floatPreferencesKey("playerVolume")
