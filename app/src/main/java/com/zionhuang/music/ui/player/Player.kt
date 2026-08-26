@@ -280,58 +280,45 @@ fun BottomSheetPlayer(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Like Chip
+                // Like Button
                 val isLiked = currentSong?.song?.liked == true
-                Row(
+                Box(
                     modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable { playerConnection.toggleLike() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .clickable { playerConnection.toggleLike() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(if (isLiked) R.drawable.favorite else R.drawable.favorite_border),
                         contentDescription = "Like",
                         tint = if (isLiked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = if (isLiked) "Liked" else "Like",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Save Chip
-                Row(
+                // Save Button
+                Box(
                     modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable { playerConnection.toggleLibrary() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        .clickable { playerConnection.toggleLibrary() },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.library_add),
                         contentDescription = "Save",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Share Chip
-                Row(
+                // Share Button
+                Box(
                     modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable {
@@ -342,48 +329,33 @@ fun BottomSheetPlayer(
                                 putExtra(android.content.Intent.EXTRA_TEXT, "Listen to ${mediaMetadata.title} on Raj Music: $shareUrl")
                             }
                             context.startActivity(android.content.Intent.createChooser(intent, null))
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.share),
                         contentDescription = "Share",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Share",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
-                // Download Chip
-                Row(
+                // Download Button
+                Box(
                     modifier = Modifier
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable {
                             Toast.makeText(context, "Downloading song for offline playback...", Toast.LENGTH_SHORT).show()
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.download),
                         contentDescription = "Download",
                         tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Download",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
