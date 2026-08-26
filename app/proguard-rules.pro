@@ -79,3 +79,9 @@
 -keep class com.my.kizzy.remote.** { <fields>; }
 # Keep Gateway data classes
 -keep class com.my.kizzy.gateway.entities.** { <fields>; }
+
+# Mozilla Rhino JS engine (used by NewPipe extractor)
+-dontwarn java.beans.**
+-dontwarn javax.script.**
+-dontwarn org.mozilla.javascript.**
+-keep class org.mozilla.javascript.** { *; }
