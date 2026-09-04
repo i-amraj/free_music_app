@@ -81,13 +81,23 @@ class ExoDownloadService : DownloadService(
             finalException: Exception?,
         ) {
             if (download.state == Download.STATE_FAILED) {
+                val title = try {
+                    Util.fromUtf8Bytes(download.request.data)
+                } catch (e: Exception) {
+                    download.request.id
+                }
+                val errorText = finalException?.message ?: "Failure code: ${download.failureReason}"
                 val notification = notificationHelper.buildDownloadFailedNotification(
                     context,
                     R.drawable.error,
                     null,
-                    Util.fromUtf8Bytes(download.request.data)
+                    "$title: $errorText"
                 )
                 NotificationUtil.setNotification(context, nextNotificationId++, notification)
+
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    android.widget.Toast.makeText(context, "Download failed: $title", android.widget.Toast.LENGTH_LONG).show()
+                }
             }
         }
     }

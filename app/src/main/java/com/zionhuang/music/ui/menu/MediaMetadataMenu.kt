@@ -191,6 +191,7 @@ fun MediaMetadataMenu(
             onDownload = {
                 database.transaction {
                     insert(mediaMetadata)
+                    inLibrary(mediaMetadata.id, java.time.LocalDateTime.now())
                 }
                 val downloadRequest = DownloadRequest.Builder(mediaMetadata.id, mediaMetadata.id.toUri())
                     .setCustomCacheKey(mediaMetadata.id)

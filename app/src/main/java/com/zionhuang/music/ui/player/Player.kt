@@ -69,7 +69,10 @@ import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_READY
 import androidx.navigation.NavController
+import com.zionhuang.music.LocalDatabase
+import com.zionhuang.music.LocalDownloadUtil
 import com.zionhuang.music.LocalPlayerConnection
+import androidx.core.net.toUri
 import com.zionhuang.music.R
 import com.zionhuang.music.constants.DarkModeKey
 import com.zionhuang.music.constants.PlayerHorizontalPadding
@@ -341,20 +344,49 @@ fun BottomSheetPlayer(
                 }
 
                 // Download Button
+                val database = LocalDatabase.current
+                val downloadUtil = LocalDownloadUtil.current
+                val downloadMap by downloadUtil.downloads.collectAsState()
+                val download = downloadMap[mediaMetadata.id]
+
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable {
-                            Toast.makeText(context, "Downloading song for offline playback...", Toast.LENGTH_SHORT).show()
+                            if (download?.state == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) {
+                                Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
+                            } else if (download?.state == androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING || download?.state == androidx.media3.exoplayer.offline.Download.STATE_QUEUED) {
+                                Toast.makeText(context, "Download in progress...", Toast.LENGTH_SHORT).show()
+                            } else {
+                                database.transaction {
+                                    insert(mediaMetadata)
+                                }
+                                val downloadRequest = androidx.media3.exoplayer.offline.DownloadRequest.Builder(mediaMetadata.id, mediaMetadata.id.toUri())
+                                    .setCustomCacheKey(mediaMetadata.id)
+                                    .setData(mediaMetadata.title.toByteArray())
+                                    .build()
+                                androidx.media3.exoplayer.offline.DownloadService.sendAddDownload(
+                                    context,
+                                    com.zionhuang.music.playback.ExoDownloadService::class.java,
+                                    downloadRequest,
+                                    false
+                                )
+                                Toast.makeText(context, "Downloading ${mediaMetadata.title}...", Toast.LENGTH_SHORT).show()
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
+                    val iconRes = when (download?.state) {
+                        androidx.media3.exoplayer.offline.Download.STATE_COMPLETED -> R.drawable.library_add_check
+                        androidx.media3.exoplayer.offline.Download.STATE_DOWNLOADING, androidx.media3.exoplayer.offline.Download.STATE_QUEUED -> R.drawable.sync
+                        else -> R.drawable.download
+                    }
                     Icon(
-                        painter = painterResource(R.drawable.download),
+                        painter = painterResource(iconRes),
                         contentDescription = "Download",
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        tint = if (download?.state == androidx.media3.exoplayer.offline.Download.STATE_COMPLETED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(22.dp)
                     )
                 }

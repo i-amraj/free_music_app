@@ -33,6 +33,8 @@ import com.zionhuang.music.ui.screens.settings.PrivacySettings
 import com.zionhuang.music.ui.screens.settings.SettingsScreen
 import com.zionhuang.music.ui.screens.settings.StorageSettings
 
+import com.zionhuang.music.constants.SongFilter
+
 @OptIn(ExperimentalMaterial3Api::class)
 fun NavGraphBuilder.navigationBuilder(
     navController: NavHostController,
@@ -45,11 +47,14 @@ fun NavGraphBuilder.navigationBuilder(
     composable(Screens.Explore.route) {
         ExploreScreen(navController, scrollBehavior)
     }
-    composable(Screens.Library.route) {
-        com.zionhuang.music.ui.screens.library.LibraryScreen(navController)
+    composable(Screens.Downloaded.route) {
+        LibrarySongsScreen(navController, initialFilter = SongFilter.DOWNLOADED)
     }
     composable(Screens.Songs.route) {
-        LibrarySongsScreen(navController)
+        LibrarySongsScreen(navController, initialFilter = SongFilter.LIBRARY)
+    }
+    composable(Screens.Library.route) {
+        com.zionhuang.music.ui.screens.library.LibraryScreen(navController)
     }
     composable(Screens.Artists.route) {
         LibraryArtistsScreen(navController)

@@ -72,12 +72,9 @@ class DownloadUtil @Inject constructor(
         val playedFormat = runBlocking(Dispatchers.IO) { database.format(mediaId).first() }
         val playerResponse = runBlocking(Dispatchers.IO) {
             YouTube.player(mediaId)
-        }.getOrThrow()
-        if (playerResponse.playabilityStatus.status != "OK") {
-            throw PlaybackException(playerResponse.playabilityStatus.reason ?: "Unknown error", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
-        }
+        }.getOrNull()
 
-        val format =
+        val format = if (playerResponse?.playabilityStatus?.status == "OK") {
             if (playedFormat != null) {
                 playerResponse.streamingData?.adaptiveFormats?.find { it.itag == playedFormat.itag }
             } else {
@@ -90,29 +87,51 @@ class DownloadUtil @Inject constructor(
                             AudioQuality.LOW -> -1
                         } + (if (it.mimeType.startsWith("audio/webm")) 10240 else 0) // prefer opus stream
                     }
-            }!!.let {
-                // Specify range to avoid YouTube's throttling
-                it.copy(url = "${it.url}&range=0-${it.contentLength ?: 10000000}")
             }
+        } else null
 
-        database.query {
-            upsert(
-                FormatEntity(
-                    id = mediaId,
-                    itag = format.itag,
-                    mimeType = format.mimeType.split(";")[0],
-                    codecs = format.mimeType.split("codecs=")[1].removeSurrounding("\""),
-                    bitrate = format.bitrate,
-                    sampleRate = format.audioSampleRate,
-                    contentLength = format.contentLength ?: 5000000L,
-                    loudnessDb = playerResponse.playerConfig?.audioConfig?.loudnessDb
-                )
-            )
+        // Priority 1: Use NewPipe helper for un-throttled audio stream URL
+        val newPipeUrl = runBlocking(Dispatchers.IO) {
+            try {
+                com.zionhuang.music.utils.NewPipeHelper.getAudioStreamUrl(mediaId)
+            } catch (e: Exception) {
+                android.util.Log.w("DownloadUtil", "NewPipe extraction failed for $mediaId: ${e.message}")
+                null
+            }
         }
 
-        val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
-        songUrlCache[mediaId] = format.url!! to (System.currentTimeMillis() + expiresInMs)
-        dataSpec.withUri(format.url!!.toUri())
+        val rawUrl = newPipeUrl ?: format?.url
+            ?: throw PlaybackException("No audio stream URL available for download", null, PlaybackException.ERROR_CODE_REMOTE_ERROR)
+
+        val streamUrl = if (!rawUrl.contains("&range=") && format?.contentLength != null) {
+            "$rawUrl&range=0-${format.contentLength}"
+        } else {
+            rawUrl
+        }
+
+        if (format != null) {
+            val codecsStr = if (format.mimeType.contains("codecs=")) {
+                format.mimeType.split("codecs=").getOrNull(1)?.removeSurrounding("\"") ?: ""
+            } else ""
+            database.query {
+                upsert(
+                    FormatEntity(
+                        id = mediaId,
+                        itag = format.itag,
+                        mimeType = format.mimeType.split(";")[0],
+                        codecs = codecsStr,
+                        bitrate = format.bitrate,
+                        sampleRate = format.audioSampleRate,
+                        contentLength = format.contentLength ?: 5000000L,
+                        loudnessDb = playerResponse?.playerConfig?.audioConfig?.loudnessDb
+                    )
+                )
+            }
+        }
+
+        val expiresInMs = (playerResponse?.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
+        songUrlCache[mediaId] = streamUrl to (System.currentTimeMillis() + expiresInMs)
+        dataSpec.withUri(streamUrl.toUri())
     }
     val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)
     val downloadManager: DownloadManager = DownloadManager(context, databaseProvider, downloadCache, dataSourceFactory, Executor(Runnable::run)).apply {

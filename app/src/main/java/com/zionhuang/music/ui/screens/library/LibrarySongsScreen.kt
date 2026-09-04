@@ -64,6 +64,22 @@ import com.zionhuang.music.ui.component.SongListItem
 import com.zionhuang.music.ui.component.SortHeader
 import com.zionhuang.music.ui.menu.SongMenu
 import com.zionhuang.music.ui.menu.SongSelectionMenu
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.media3.common.util.Util
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
+import com.zionhuang.music.LocalDownloadUtil
+import com.zionhuang.music.playback.ExoDownloadService
 import com.zionhuang.music.utils.rememberEnumPreference
 import com.zionhuang.music.utils.rememberPreference
 import com.zionhuang.music.viewmodels.LibrarySongsViewModel
@@ -73,6 +89,7 @@ import com.zionhuang.music.viewmodels.LibrarySongsViewModel
 fun LibrarySongsScreen(
     navController: NavController,
     viewModel: LibrarySongsViewModel = hiltViewModel(),
+    initialFilter: SongFilter? = null,
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -83,6 +100,11 @@ fun LibrarySongsScreen(
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
 
     var filter by rememberEnumPreference(SongFilterKey, SongFilter.LIBRARY)
+    LaunchedEffect(initialFilter) {
+        if (initialFilter != null) {
+            filter = initialFilter
+        }
+    }
     val (sortType, onSortTypeChange) = rememberEnumPreference(SongSortTypeKey, SongSortType.CREATE_DATE)
     val (sortDescending, onSortDescendingChange) = rememberPreference(SongSortDescendingKey, true)
 
@@ -126,6 +148,17 @@ fun LibrarySongsScreen(
         }
     }
 
+    val downloadUtil = LocalDownloadUtil.current
+    val downloadMap by downloadUtil.downloads.collectAsState()
+    val activeDownloads = remember(downloadMap) {
+        downloadMap.values.filter {
+            it.state == Download.STATE_DOWNLOADING ||
+            it.state == Download.STATE_QUEUED ||
+            it.state == Download.STATE_FAILED ||
+            it.state == Download.STATE_RESTARTING
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -146,6 +179,140 @@ fun LibrarySongsScreen(
                     currentValue = filter,
                     onValueUpdate = { filter = it }
                 )
+            }
+
+            if (activeDownloads.isNotEmpty()) {
+                item(
+                    key = "download_queue",
+                    contentType = CONTENT_TYPE_HEADER
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.download),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Downloading Queue (${activeDownloads.size})",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        activeDownloads.forEach { download ->
+                            val title = remember(download) {
+                                try {
+                                    Util.fromUtf8Bytes(download.request.data)
+                                } catch (e: Exception) {
+                                    download.request.id
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    val statusText = when (download.state) {
+                                        Download.STATE_DOWNLOADING -> {
+                                            val pct = download.percentDownloaded
+                                            if (pct >= 0) "Downloading ${pct.toInt()}%" else "Downloading..."
+                                        }
+                                        Download.STATE_QUEUED -> "Queued..."
+                                        Download.STATE_FAILED -> "Failed (Error code: ${download.failureReason})"
+                                        else -> "Processing..."
+                                    }
+                                    Text(
+                                        text = statusText,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (download.state == Download.STATE_FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary
+                                    )
+                                    if (download.state == Download.STATE_DOWNLOADING) {
+                                        val progress = (download.percentDownloaded / 100f).coerceIn(0f, 1f)
+                                        LinearProgressIndicator(
+                                            progress = { if (download.percentDownloaded >= 0) progress else 0f },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 4.dp)
+                                                .height(4.dp),
+                                        )
+                                    } else if (download.state == Download.STATE_QUEUED) {
+                                        LinearProgressIndicator(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 4.dp)
+                                                .height(4.dp),
+                                        )
+                                    }
+                                }
+
+                                if (download.state == Download.STATE_FAILED) {
+                                    IconButton(
+                                        onClick = {
+                                            val downloadRequest = DownloadRequest.Builder(download.request.id, download.request.uri)
+                                                .setCustomCacheKey(download.request.id)
+                                                .setData(download.request.data)
+                                                .build()
+                                            DownloadService.sendAddDownload(
+                                                context,
+                                                ExoDownloadService::class.java,
+                                                downloadRequest,
+                                                false
+                                            )
+                                        }
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.sync),
+                                            contentDescription = "Retry",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        DownloadService.sendRemoveDownload(
+                                            context,
+                                            ExoDownloadService::class.java,
+                                            download.request.id,
+                                            false
+                                        )
+                                    }
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.close),
+                                        contentDescription = "Cancel",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             item(

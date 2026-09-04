@@ -67,14 +67,13 @@ class LibrarySongsViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { (filter, sortType, descending) ->
             when (filter) {
-                SongFilter.LIBRARY -> database.songs(sortType, descending)
-                SongFilter.LIKED -> database.likedSongs(sortType, descending)
+                SongFilter.LIBRARY,
                 SongFilter.DOWNLOADED -> downloadUtil.downloads.flatMapLatest { downloads ->
                     database.allSongs()
                         .flowOn(Dispatchers.IO)
                         .map { songs ->
                             songs.filter {
-                                downloads[it.id]?.state == Download.STATE_COMPLETED
+                                downloads[it.id]?.state == Download.STATE_COMPLETED || it.song.inLibrary != null
                             }
                         }
                         .map { songs ->
@@ -89,6 +88,7 @@ class LibrarySongsViewModel @Inject constructor(
                             }.reversed(descending)
                         }
                 }
+                SongFilter.LIKED -> database.likedSongs(sortType, descending)
             }
         }.stateIn(viewModelScope, SharingStarted.Lazily, null)
 }

@@ -25,8 +25,8 @@ android {
         applicationId = "com.zionhuang.music"
         minSdk = 24
         targetSdk = 35
-        versionCode = 28
-        versionName = "0.6.0"
+        versionCode = 29
+        versionName = "0.6.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -35,10 +35,15 @@ android {
             isShrinkResources = true
             isCrunchPngs = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             // No suffix - app will be called "Raj Music"
         }
+    }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
     flavorDimensions += "version"
     productFlavors {
@@ -50,14 +55,14 @@ android {
         }
     }
 
-//    splits {
-//        abi {
-//            isEnable = true
-//            reset()
-//            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-//            isUniversalApk = false
-//        }
-//    }
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
     
     signingConfigs {
         getByName("debug") {

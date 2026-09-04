@@ -394,6 +394,7 @@ class MainActivity : ComponentActivity() {
                     val topLevelScreens = listOf(
                         Screens.Home.route,
                         Screens.Explore.route,
+                        Screens.Downloaded.route,
                         Screens.Library.route,
                         Screens.Songs.route,
                         Screens.Artists.route,

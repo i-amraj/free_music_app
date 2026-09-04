@@ -494,7 +494,7 @@ fun Queue(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .clickable { selectedQueueTab = 0 }
+                                .clickable { selectedQueueTab = 0; showLyrics = false }
                                 .padding(vertical = 8.dp)
                         ) {
                             Text(
@@ -545,7 +545,7 @@ fun Queue(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .clickable { selectedQueueTab = 2 }
+                                .clickable { selectedQueueTab = 2; showLyrics = false }
                                 .padding(vertical = 8.dp)
                         ) {
                             Text(
@@ -893,7 +893,7 @@ fun QueueContent(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .clickable { selectedQueueTab = 0 }
+                        .clickable { selectedQueueTab = 0; showLyrics = false }
                         .padding(vertical = 8.dp)
                 ) {
                     Text(
@@ -917,7 +917,7 @@ fun QueueContent(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .clickable { selectedQueueTab = 1 }
+                        .clickable { selectedQueueTab = 1; showLyrics = true }
                         .padding(vertical = 8.dp)
                 ) {
                     Text(
@@ -941,7 +941,7 @@ fun QueueContent(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
-                        .clickable { selectedQueueTab = 2 }
+                        .clickable { selectedQueueTab = 2; showLyrics = false }
                         .padding(vertical = 8.dp)
                 ) {
                     Text(

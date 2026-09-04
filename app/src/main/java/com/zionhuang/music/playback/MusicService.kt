@@ -605,7 +605,37 @@ class MusicService : MediaLibraryService(),
         }
     }
 
+    private val songUrlCache = HashMap<String, Pair<String, Long>>()
+    private val retryCount = HashMap<String, Int>()
+    private val MAX_RETRIES = 2
+
     override fun onPlayerError(error: PlaybackException) {
+        val mediaId = player.currentMediaItem?.mediaId
+        android.util.Log.e("MusicService", "Player error for $mediaId: ${error.errorCode} - ${error.message}", error)
+
+        // On HTTP 403 or IO errors, invalidate cached URL and retry
+        if (mediaId != null) {
+            val currentRetries = retryCount.getOrDefault(mediaId, 0)
+            val isRetryableError = error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED ||
+                    error.errorCode == PlaybackException.ERROR_CODE_REMOTE_ERROR
+
+            if (isRetryableError && currentRetries < MAX_RETRIES) {
+                android.util.Log.w("MusicService", "Retrying $mediaId (attempt ${currentRetries + 1}/$MAX_RETRIES) - invalidating cached URL")
+                songUrlCache.remove(mediaId)
+                // Also clear the player cache for this song to force a fresh fetch
+                playerCache.removeResource(mediaId)
+                retryCount[mediaId] = currentRetries + 1
+                player.prepare()
+                player.playWhenReady = true
+                return
+            }
+        }
+
+        // Reset retry count on non-retryable errors or max retries exceeded
+        if (mediaId != null) retryCount.remove(mediaId)
+
         if (dataStore.get(AutoSkipNextOnErrorKey, false) &&
             isInternetAvailable(this) &&
             player.hasNextMediaItem()
@@ -639,7 +669,6 @@ class MusicService : MediaLibraryService(),
             .setFlags(FLAG_IGNORE_CACHE_ON_ERROR)
 
     private fun createDataSourceFactory(): DataSource.Factory {
-        val songUrlCache = HashMap<String, Pair<String, Long>>()
         return ResolvingDataSource.Factory(createCacheDataSource()) { dataSpec ->
             val mediaId = dataSpec.key ?: error("No media id")
             val length = if (dataSpec.length >= 0) dataSpec.length else 1
@@ -714,9 +743,20 @@ class MusicService : MediaLibraryService(),
             // Resolve an un-throttled stream URL via NewPipe (it deciphers the `n`
             // parameter that otherwise causes HTTP 403 on ranges beyond ~1 MB).
             // Fall back to the InnerTube URL if NewPipe can't resolve one.
-            val streamUrl = runBlocking(Dispatchers.IO) { NewPipeHelper.getAudioStreamUrl(mediaId) }
+            val newPipeUrl = runBlocking(Dispatchers.IO) { 
+                try { NewPipeHelper.getAudioStreamUrl(mediaId) } catch (e: Exception) { 
+                    android.util.Log.w("MusicService", "NewPipe failed for $mediaId: ${e.message}")
+                    null 
+                } 
+            }
+            val streamUrl = newPipeUrl
                 ?: format.url
                 ?: throw PlaybackException(getString(R.string.error_no_stream), null, ERROR_CODE_NO_STREAM)
+
+            android.util.Log.d("MusicService", "Stream resolved for $mediaId via ${if (newPipeUrl != null) "NewPipe" else "InnerTube"}")
+
+            // Reset retry count on successful resolution
+            retryCount.remove(mediaId)
 
             val expiresInMs = (playerResponse.streamingData?.expiresInSeconds?.toLong() ?: 21600L) * 1000L
             songUrlCache[mediaId] = streamUrl to (System.currentTimeMillis() + expiresInMs)

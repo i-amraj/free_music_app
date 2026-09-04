@@ -242,6 +242,7 @@ fun YouTubeSongMenu(
             onDownload = {
                 database.transaction {
                     insert(song.toMediaMetadata())
+                    inLibrary(song.id, java.time.LocalDateTime.now())
                 }
                 val downloadRequest = DownloadRequest.Builder(song.id, song.id.toUri())
                     .setCustomCacheKey(song.id)

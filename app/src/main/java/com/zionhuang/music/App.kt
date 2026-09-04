@@ -38,12 +38,28 @@ import timber.log.Timber
 import java.net.Proxy
 import java.util.Locale
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+
 @HiltAndroidApp
 class App : Application(), ImageLoaderFactory {
     @OptIn(DelicateCoroutinesApi::class)
     override fun onCreate() {
         super.onCreate()
         Timber.plant(Timber.DebugTree())
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channel = NotificationChannel(
+                com.zionhuang.music.playback.ExoDownloadService.CHANNEL_ID,
+                getString(R.string.downloaded),
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Music download notifications"
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
 
         val locale = Locale.getDefault()
         val languageTag = locale.toLanguageTag().replace("-Hant", "") // replace zh-Hant-* to zh-*

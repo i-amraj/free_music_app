@@ -239,6 +239,9 @@ fun SongMenu(
         DownloadGridMenu(
             state = download?.state,
             onDownload = {
+                database.transaction {
+                    inLibrary(song.id, java.time.LocalDateTime.now())
+                }
                 val downloadRequest = DownloadRequest.Builder(song.id, song.id.toUri())
                     .setCustomCacheKey(song.id)
                     .setData(song.song.title.toByteArray())
